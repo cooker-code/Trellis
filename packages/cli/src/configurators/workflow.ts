@@ -65,6 +65,14 @@ export interface WorkflowOptions {
    * falling back to the English source. Default `en`.
    */
   language?: string;
+  /**
+   * Optional override for `.trellis/workflow.md` content. When omitted the
+   * bundled native template is written. Set by `init --workflow` (or
+   * `--workflow-source`) after the resolver has fetched marketplace content.
+   * Caller is still responsible for removing the `.trellis/workflow.md` hash
+   * entry for non-native workflows so update.ts treats them as user-managed.
+   */
+  workflowMdOverride?: string;
 }
 
 /**
@@ -89,6 +97,8 @@ export async function createWorkflowStructure(
   const packages = options?.packages;
   const remoteSpecPackages = options?.remoteSpecPackages;
   const language = options?.language ?? "en";
+  const workflowMd =
+    options?.workflowMdOverride ?? getWorkflowTemplate(language);
 
   // Create base .trellis directory
   ensureDir(path.join(cwd, DIR_NAMES.WORKFLOW));
@@ -98,11 +108,11 @@ export async function createWorkflowStructure(
     executable: true,
   });
 
-  // Copy workflow.md from templates (locale-aware: prefer workflow.<locale>.md
-  // when present, fall back to English).
+  // Copy workflow.md (native bundled template, locale-aware variant, or
+  // selected marketplace override).
   await writeFile(
     path.join(cwd, PATHS.WORKFLOW_GUIDE_FILE),
-    replacePythonCommandLiterals(getWorkflowTemplate(language)),
+    replacePythonCommandLiterals(workflowMd),
   );
 
   // Copy .gitignore from templates
