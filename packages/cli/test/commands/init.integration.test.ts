@@ -123,6 +123,31 @@ describe("init() integration", () => {
     ).toBe(true);
   });
 
+  it("#1c lands English workflow.md by default and Chinese under --language zh", async () => {
+    // Default: English content lands at .trellis/workflow.md
+    await init({ yes: true });
+    const enContent = fs.readFileSync(
+      path.join(tmpDir, PATHS.WORKFLOW_GUIDE_FILE),
+      "utf-8",
+    );
+    expect(enContent.startsWith("# Development Workflow")).toBe(true);
+
+    // Re-init with --language zh in a separate temp dir
+    const tmpDir2 = fs.mkdtempSync(path.join(os.tmpdir(), "trellis-init-zh-"));
+    vi.mocked(process.cwd).mockReturnValue(tmpDir2);
+    try {
+      await init({ yes: true, language: "zh" });
+      const zhContent = fs.readFileSync(
+        path.join(tmpDir2, PATHS.WORKFLOW_GUIDE_FILE),
+        "utf-8",
+      );
+      expect(zhContent.startsWith("# 开发工作流")).toBe(true);
+    } finally {
+      fs.rmSync(tmpDir2, { recursive: true, force: true });
+      delete process.env.TRELLIS_LANGUAGE;
+    }
+  });
+
   it("#1b does not print the promotional pain-point block", async () => {
     await init({ yes: true });
 

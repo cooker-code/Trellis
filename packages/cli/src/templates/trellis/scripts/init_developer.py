@@ -20,15 +20,18 @@ from common.paths import (
     get_developer,
 )
 from common.developer import init_developer
+from common.i18n import set_locale, t
 
 
 def main() -> None:
     """CLI entry point."""
+    set_locale()  # reads TRELLIS_LANGUAGE env / config.yaml / default "en"
+
     if len(sys.argv) < 2:
-        print(f"Usage: {sys.argv[0]} <developer-name>")
+        print(t("init_developer.usage", script=sys.argv[0]))
         print()
-        print("Example:")
-        print(f"  {sys.argv[0]} john")
+        print(t("init_developer.example_label"))
+        print(t("init_developer.example_command", script=sys.argv[0]))
         sys.exit(1)
 
     name = sys.argv[1]
@@ -36,9 +39,9 @@ def main() -> None:
     # Check if already initialized
     existing = get_developer()
     if existing:
-        print(f"Developer already initialized: {existing}")
+        print(t("init_developer.already_initialized", name=existing))
         print()
-        print(f"To reinitialize, remove {DIR_WORKFLOW}/{FILE_DEVELOPER} first")
+        print(t("init_developer.reinit_hint", dir=DIR_WORKFLOW, file=FILE_DEVELOPER))
         sys.exit(0)
 
     if init_developer(name):

@@ -5,7 +5,7 @@ import { copyTrellisDir } from "../templates/extract.js";
 
 // Import trellis templates (generic, not project-specific)
 import {
-  workflowMdTemplate,
+  getWorkflowTemplate,
   configYamlTemplate,
   gitignoreTemplate,
 } from "../templates/trellis/index.js";
@@ -59,6 +59,12 @@ export interface WorkflowOptions {
   packages?: DetectedPackage[];
   /** Package names that use remote templates (skip blank spec for these) */
   remoteSpecPackages?: Set<string>;
+  /**
+   * Source-template language code (i18n). When set to a non-`en` locale,
+   * locale-suffixed template files (`workflow.<locale>.md`) are preferred,
+   * falling back to the English source. Default `en`.
+   */
+  language?: string;
 }
 
 /**
@@ -82,6 +88,7 @@ export async function createWorkflowStructure(
   const skipSpecTemplates = options?.skipSpecTemplates ?? false;
   const packages = options?.packages;
   const remoteSpecPackages = options?.remoteSpecPackages;
+  const language = options?.language ?? "en";
 
   // Create base .trellis directory
   ensureDir(path.join(cwd, DIR_NAMES.WORKFLOW));
@@ -91,10 +98,11 @@ export async function createWorkflowStructure(
     executable: true,
   });
 
-  // Copy workflow.md from templates
+  // Copy workflow.md from templates (locale-aware: prefer workflow.<locale>.md
+  // when present, fall back to English).
   await writeFile(
     path.join(cwd, PATHS.WORKFLOW_GUIDE_FILE),
-    replacePythonCommandLiterals(workflowMdTemplate),
+    replacePythonCommandLiterals(getWorkflowTemplate(language)),
   );
 
   // Copy .gitignore from templates

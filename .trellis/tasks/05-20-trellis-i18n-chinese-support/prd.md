@@ -79,7 +79,7 @@
 ### R2 模板组织
 - [ ] 模板源遵循"并列后缀"约定：英文 `foo.md`、中文 `foo.zh.md`；同一目录平铺
 - [ ] sync 时根据当前语言决定：`zh` → 优先取 `*.zh.md`（缺则取 `*.md`），落地为 `*.md`（脱后缀）
-- [ ] `.template-hashes.json` 跟踪原模板路径（包含后缀），保证未翻译的英文文件 hash 不变
+- [ ] `.template-hashes.json` 对 i18n 透明：key 仍是脱后缀落地路径（如 `.trellis/workflow.md`），value 是落地内容的 SHA256（中文模式下=中文 hash，英文模式下=英文 hash）。i18n 仅在 `collectTemplateFiles` 上游做"源选择"，hash 系统零改动。详见 `research/template-hashes.md`。
 
 ### R3 内容覆盖（L2）
 - [ ] **PR1 仅翻译 `templates/trellis/workflow.md`**（破冰）；其他文件交后续 PR 分批补齐
@@ -169,4 +169,6 @@
 
 ## Research References
 
-（待补充）
+* [`research/sync-call-chain.md`](research/sync-call-chain.md) — init/update 是事实上的 sync 入口；`workflowMdTemplate` 是顶层 const 必须改函数化；介入点 = 源端聚合层（A）+ CLI 入口注入（D）。
+* [`research/template-hashes.md`](research/template-hashes.md) — hash 跟踪以"落地路径+落地内容"为契约；i18n 在源选择层透明，hash 系统零改动；切语言后必须 `updateHashes` 否则误判用户手改。
+* [`research/config-and-python-i18n.md`](research/config-and-python-i18n.md) — TS 端无统一 schema，仿 `loadUpdateSkipPaths` 写 5-10 行 reader；Python 端共享 `_load_config`；i18n 字典拆 `i18n_strings/{en,zh}.py` 子模块；优先级 `flag > env(TRELLIS_LANGUAGE) > config.yaml > "en"`。

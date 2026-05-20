@@ -167,6 +167,8 @@ def _next_content_line(lines: list[str], start: int) -> tuple[int, str]:
 DEFAULT_SESSION_COMMIT_MESSAGE = "chore: record journal"
 DEFAULT_MAX_JOURNAL_LINES = 2000
 DEFAULT_SESSION_AUTO_COMMIT = True
+DEFAULT_LANGUAGE = "en"
+SUPPORTED_LANGUAGES = ("en", "zh")
 
 CONFIG_FILE = "config.yaml"
 
@@ -241,6 +243,28 @@ def get_session_auto_commit(repo_root: Path | None = None) -> bool:
         file=sys.stderr,
     )
     return DEFAULT_SESSION_AUTO_COMMIT
+
+
+def get_language(repo_root: Path | None = None) -> str:
+    """Get the source-template language for Trellis i18n.
+
+    Reads ``language`` from ``.trellis/config.yaml`` and returns ``"en"`` or
+    ``"zh"``. Default ``"en"`` if unset. Invalid values fall back to ``"en"``
+    with a stderr warning (mirrors :func:`get_session_auto_commit`).
+
+    Used by ``scripts/common/i18n.py`` to pick which string dictionary to load
+    for user-facing prints.
+    """
+    config = _load_config(repo_root)
+    raw = config.get("language", DEFAULT_LANGUAGE)
+    code = str(raw).strip().lower()
+    if code in SUPPORTED_LANGUAGES:
+        return code
+    print(
+        f"[WARN] invalid language value: {raw!r}; using {DEFAULT_LANGUAGE} (default)",
+        file=sys.stderr,
+    )
+    return DEFAULT_LANGUAGE
 
 
 def get_hooks(event: str, repo_root: Path | None = None) -> list[str]:

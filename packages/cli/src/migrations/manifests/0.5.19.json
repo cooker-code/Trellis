@@ -1,0 +1,16 @@
+{
+  "version": "0.5.19",
+  "description": "Feature: i18n source-template selection (PR1) — `--language en|zh` flag, `language:` config field, locale-aware workflow.md sync, Python `i18n.t()` helper.",
+  "breaking": false,
+  "recommendMigrate": false,
+  "changelog": "**Enhancements:**\n- feat(cli): `trellis init` and `trellis update` accept `--language <code>` (one-shot override) and read `language: en|zh` from `.trellis/config.yaml`. Priority: flag > `TRELLIS_LANGUAGE` env > `config.yaml` > `en` (default).\n- feat(templates): source layer now selects `workflow.<locale>.md` when present and falls back to English. Landed file is always `.trellis/workflow.md`; `.template-hashes.json` keys remain locale-agnostic.\n- feat(scripts): new `common/i18n.py` (`set_locale` / `t(key)`) backed by `i18n_strings/{en,zh}.py` dictionaries. `init_developer.py` migrated as the pilot; remaining scripts follow in PR2/PR3.\n- feat(scripts): new `get_language()` accessor in `common/config.py` reads the new `language:` field with warn-on-invalid fallback to `en`.",
+  "migrations": [],
+  "configSectionsAdded": [
+    {
+      "file": ".trellis/config.yaml",
+      "sentinel": "language:",
+      "sectionHeading": "Language"
+    }
+  ],
+  "notes": "Patch on top of 0.5.18. Run `trellis update` to materialize the new `language:` section in `.trellis/config.yaml` (commented-out by default — zero behavior change). Translated `workflow.zh.md` lands as a placeholder in this PR; full Chinese translation continues in PR2/PR3."
+}
