@@ -72,7 +72,6 @@ export const getContextScript = readTemplate("scripts/get_context.py");
 export const addSessionScript = readTemplate("scripts/add_session.py");
 
 // Configuration files
-export const workflowMdTemplate = readTemplate("workflow.md");
 export const configYamlTemplate = readTemplate("config.yaml");
 export const gitignoreTemplate = readTemplate("gitignore.txt");
 export const gitattributesTemplate = readTemplate("gitattributes.txt");
@@ -83,6 +82,62 @@ export const gitattributesTemplate = readTemplate("gitattributes.txt");
 // and refreshed by `trellis update`.
 export const implementAgentTemplate = readTemplate("agents/implement.md");
 export const checkAgentTemplate = readTemplate("agents/check.md");
+
+// English source for workflow.md (always loaded as the fallback).
+const workflowMdTemplateEn = readTemplate("workflow.md");
+
+// Lazy-loaded translations (cached after first read; missing → undefined).
+const workflowMdTemplateCache: Record<string, string | undefined> = {
+  en: workflowMdTemplateEn,
+};
+
+function tryReadTemplate(relativePath: string): string | undefined {
+  try {
+    return readTemplate(relativePath);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Get the workflow.md template content for the given locale.
+ *
+ * For non-`en` locales, the corresponding `workflow.<locale>.md` source is
+ * preferred; if it does not exist, the function silently falls back to the
+ * English source. The same locale-suffix-then-fallback rule will apply to
+ * other i18n-aware templates introduced in PR2/PR3.
+ *
+ * The English text remains accessible as the legacy `workflowMdTemplate`
+ * named export for callers that don't yet pass a locale (kept for backward
+ * compatibility during the i18n rollout).
+ */
+export function getWorkflowTemplate(locale: string = "en"): string {
+  const code = locale.toLowerCase();
+  if (code === "en") return workflowMdTemplateEn;
+  if (code in workflowMdTemplateCache) {
+    const cached = workflowMdTemplateCache[code];
+    if (cached !== undefined) return cached;
+    return workflowMdTemplateEn;
+  }
+  const translated = tryReadTemplate(`workflow.${code}.md`);
+  workflowMdTemplateCache[code] = translated;
+  return translated ?? workflowMdTemplateEn;
+}
+
+/** @deprecated Prefer `getWorkflowTemplate(locale)`; this alias always returns English. */
+export const workflowMdTemplate = workflowMdTemplateEn;
+
+// Python scripts - i18n
+export const commonI18n = readTemplate("scripts/common/i18n.py");
+export const commonI18nStringsInit = readTemplate(
+  "scripts/common/i18n_strings/__init__.py",
+);
+export const commonI18nStringsEn = readTemplate(
+  "scripts/common/i18n_strings/en.py",
+);
+export const commonI18nStringsZh = readTemplate(
+  "scripts/common/i18n_strings/zh.py",
+);
 
 /**
  * Get all script templates as a map of relative path to content
@@ -115,6 +170,10 @@ export function getAllScripts(): Map<string, string> {
   scripts.set("common/workflow_phase.py", commonWorkflowPhase);
   scripts.set("common/trellis_config.py", commonTrellisConfig);
   scripts.set("common/safe_commit.py", commonSafeCommit);
+  scripts.set("common/i18n.py", commonI18n);
+  scripts.set("common/i18n_strings/__init__.py", commonI18nStringsInit);
+  scripts.set("common/i18n_strings/en.py", commonI18nStringsEn);
+  scripts.set("common/i18n_strings/zh.py", commonI18nStringsZh);
 
   // Main
   scripts.set("get_developer.py", getDeveloperScript);

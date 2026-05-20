@@ -66,6 +66,11 @@ import {
 import { setupProxy, maskProxyUrl } from "../utils/proxy.js";
 import { toPosix } from "../utils/posix.js";
 import { updateHashes } from "../utils/template-hash.js";
+import {
+  resolveLanguage,
+  validateLanguage,
+  DEFAULT_LANGUAGE,
+} from "../utils/i18n.js";
 
 const MIN_PYTHON_MAJOR = 3;
 const MIN_PYTHON_MINOR = 9;
@@ -1038,6 +1043,12 @@ interface InitOptions {
   withStatusline?: boolean;
   workflow?: string;
   workflowSource?: string;
+  /**
+   * Source-template language code (i18n). One-shot override that does not
+   * persist to `.trellis/config.yaml`. Resolution priority is
+   * flag > `TRELLIS_LANGUAGE` env > `config.yaml` > `"en"`.
+   */
+  language?: string;
 }
 
 // Compile-time check: every CliFlag must be a key of InitOptions.
@@ -1118,6 +1129,25 @@ export async function init(options: InitOptions): Promise<void> {
 
   const cwd = process.cwd();
   const isFirstInit = !fs.existsSync(path.join(cwd, DIR_NAMES.WORKFLOW));
+
+  // Resolve i18n language (CLI flag > env > config.yaml > "en"). When the
+  // user passes `--language zh`, propagate via env so `resolveLanguage(cwd)`
+  // and Python scripts (via TRELLIS_LANGUAGE) agree throughout this run.
+  // Invalid flag values warn once and degrade to the env/config/default
+  // chain (mirrors Python `_is_true_config_value` warn-on-invalid style).
+  if (options.language !== undefined) {
+    const validated = validateLanguage(options.language);
+    if (!validated) {
+      console.warn(
+        chalk.yellow(
+          `⚠ Invalid --language value: ${JSON.stringify(options.language)}; falling back to ${DEFAULT_LANGUAGE}.`,
+        ),
+      );
+    } else {
+      process.env.TRELLIS_LANGUAGE = validated;
+    }
+  }
+  const language = resolveLanguage(cwd);
   // Captured here (before createWorkflowStructure + init_developer run) so
   // the three-branch dispatch at the bottom can tell "fresh clone joiner"
   // (.trellis/ exists, .developer missing) apart from "creator first init".
@@ -1919,6 +1949,7 @@ export async function init(options: InitOptions): Promise<void> {
       packages: monorepoPackages,
       remoteSpecPackages,
       workflowMdOverride,
+      language,
     });
 
     // Write monorepo packages to config.yaml (non-destructive patch)

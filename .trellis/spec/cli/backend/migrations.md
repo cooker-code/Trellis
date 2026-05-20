@@ -194,6 +194,48 @@ update:
 - 初始化：`trellis init` 时自动创建
 - 更新：`trellis update` 后自动更新被覆盖文件的哈希
 
+### i18n transparency contract (locale-blind manifest)
+
+`.template-hashes.json` is intentionally **locale-blind**. The manifest only knows about *landed* paths and *landed* content — it has no concept of source-template language.
+
+#### Required invariants
+
+When i18n adds parallel `*.zh.md` source templates next to `*.md`:
+
+1. **Manifest keys remain suffix-stripped landed paths.**
+   The hash key is always `.trellis/workflow.md`, never `.trellis/workflow.zh.md`. The `.zh.` suffix exists only in the source-template directory tree (`packages/cli/src/templates/...`), not in any project-side artifact.
+
+2. **Manifest values are SHA256 of the landed bytes.**
+   Under `language: zh`, the value tracks the Chinese content; under `language: en`, the value tracks the English content. Same key, content-dependent value. This is automatic — `updateHashes(cwd, {<landedPath>: <landedContent>})` already computes the hash from the bytes that were written.
+
+3. **`analyzeChanges`, `pruneOrphanManifestKeys`, and uninstall are zero-modified.**
+   All three iterate landed paths and compare landed bytes. Locale selection happens upstream in `collectTemplateFiles` / `getXxxTemplate(locale)`, so by the time content reaches `analyzeChanges`, the locale dimension has already been collapsed.
+
+#### Locale-switch semantics
+
+Switching `language` and rerunning `trellis init` / `trellis update` is an **expected hash transition**, not a "user modified" detection:
+
+- Old run wrote English bytes → manifest stored English hash.
+- User flips `language: zh` and reruns → new template content = Chinese bytes.
+- `analyzeChanges` reads disk (still English from last run) → `existing != newContent` → checks `storedHash == computeHash(existing)` → matches → routed to `autoUpdateFiles` (auto-overwrite without prompting).
+- After write, `updateHashes` rewrites the manifest entry with the Chinese hash.
+
+If the user ALSO hand-edited the file before flipping locale, the file falls through to `changedFiles` (confirm / `--force` / `--skip`). This is correct behavior — user edits should always require confirmation regardless of locale.
+
+#### What MUST NOT happen
+
+- ❌ Never store `.trellis/workflow.zh.md` as a manifest key. The PR1 PRD's R2-Item-3 originally proposed this; it was rejected because `analyzeChanges` would lookup the suffix-stripped landed path, miss the suffixed key, and misclassify everything as user-modified.
+- ❌ Never compute the hash from the source-template bytes when source ≠ landed (e.g. don't hash `workflow.zh.md` source bytes and store under key `.trellis/workflow.md`). The contract is *landed → landed* on both axes.
+
+#### Test coverage
+
+When changing the i18n source-selection layer, add tests asserting:
+
+- After `language: zh` sync, `.template-hashes.json` contains key `.trellis/workflow.md` with hash matching Chinese landed bytes (not English).
+- After flipping back to `language: en` and rerunning, the same key now matches English bytes.
+- `trellis update` post-flip routes to `autoUpdateFiles` (not `changedFiles`) when the user has not hand-edited the landed file.
+- `pruneOrphanManifestKeys` does NOT prune `.trellis/workflow.md` regardless of active locale (the path matches its `.trellis/` preserve rule).
+
 ### Manifest ownership contract (CRITICAL — data loss prevention)
 
 `.template-hashes.json` is the **single source of truth** for `trellis uninstall`. Every key listed there gets `fs.unlinkSync`'d at uninstall time. Therefore the manifest must contain **only files trellis actually wrote during init / update — never files that merely happen to exist under a managed directory**.

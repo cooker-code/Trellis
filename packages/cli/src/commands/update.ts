@@ -42,8 +42,13 @@ import {
   // Configuration
   configYamlTemplate,
   gitignoreTemplate,
-  workflowMdTemplate,
+  getWorkflowTemplate,
 } from "../templates/trellis/index.js";
+import {
+  resolveLanguage,
+  validateLanguage,
+  DEFAULT_LANGUAGE,
+} from "../utils/i18n.js";
 import { agentsMdContent } from "../templates/markdown/index.js";
 import {
   COPILOT_INSTRUCTIONS_BLOCK_END,
@@ -81,6 +86,12 @@ export interface UpdateOptions {
   createNew?: boolean;
   allowDowngrade?: boolean;
   migrate?: boolean;
+  /**
+   * Source-template language code (i18n). One-shot override that does not
+   * persist to `.trellis/config.yaml`. Resolution priority is
+   * flag > `TRELLIS_LANGUAGE` env > `config.yaml` > `"en"`.
+   */
+  language?: string;
 }
 
 interface FileChange {
@@ -891,7 +902,12 @@ async function collectTemplateFiles(
   // --force behavior applies. Partial tag-block merging is unsafe because
   // platform routing markers outside [workflow-state:*] blocks are also
   // script-consumed.
-  files.set(`${DIR_NAMES.WORKFLOW}/workflow.md`, workflowMdTemplate);
+  // workflow.md content is locale-selected at the source: when the project
+  // configures `language: zh` (or env / flag overrides), the `*.zh.md` source
+  // is used; otherwise the English source. The landed path stays
+  // `.trellis/workflow.md` so `.template-hashes.json` keys remain locale-agnostic.
+  const language = resolveLanguage(cwd);
+  files.set(`${DIR_NAMES.WORKFLOW}/workflow.md`, getWorkflowTemplate(language));
   // workspace/index.md stays excluded — it's runtime-appended by add_session.py
   // (journal index) and has no script-parsed structure.
   files.set(FILE_NAMES.AGENTS, buildAgentsMdTemplate(cwd));
@@ -2091,6 +2107,21 @@ export async function update(options: UpdateOptions): Promise<void> {
     console.log(chalk.red("Error: Trellis not initialized in this directory."));
     console.log(chalk.gray("Run 'trellis init' first."));
     return;
+  }
+
+  // Apply the i18n language override (one-shot; does not persist to config.yaml).
+  // Done before any template collection so `resolveLanguage(cwd)` picks it up.
+  if (options.language !== undefined) {
+    const validated = validateLanguage(options.language);
+    if (!validated) {
+      console.warn(
+        chalk.yellow(
+          `⚠ Invalid --language value: ${JSON.stringify(options.language)}; falling back to ${DEFAULT_LANGUAGE}.`,
+        ),
+      );
+    } else {
+      process.env.TRELLIS_LANGUAGE = validated;
+    }
   }
 
   console.log(chalk.cyan("\nTrellis Update"));

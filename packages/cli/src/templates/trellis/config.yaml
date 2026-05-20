@@ -15,6 +15,24 @@ session_commit_message: "chore: record journal"
 max_journal_lines: 2000
 
 #-------------------------------------------------------------------------------
+# Language
+#-------------------------------------------------------------------------------
+
+# Source-template language used by `trellis init` / `trellis update` to pick
+# which version of workflow.md / agents/*.md / scripts to materialize into
+# .trellis/. Switching language requires re-running the sync command;
+# runtime files are NOT live-translated.
+#
+# Accepts: en (default) / zh
+# Falls back to en when a translated *.zh.* template is missing.
+#
+# Python scripts (task.py / add_session.py / init_developer.py …) read this
+# value once at startup to choose the i18n string dictionary used by their
+# user-facing prints. Change effect: edit + rerun `trellis update`.
+#
+# language: en
+
+#-------------------------------------------------------------------------------
 # Session Auto-Commit
 #-------------------------------------------------------------------------------
 

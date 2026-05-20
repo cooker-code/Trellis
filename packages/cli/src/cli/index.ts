@@ -126,6 +126,10 @@ program
     "--workflow-source <source>",
     "Custom marketplace source for the --workflow lookup (e.g., gh:myorg/myrepo/marketplace)",
   )
+  .option(
+    "--language <code>",
+    "Source-template language (en | zh). One-shot; does not modify config.yaml.",
+  )
   .action(async (options: Record<string, unknown>) => {
     try {
       // Deprecated alias: --windsurf → --devin (Windsurf was renamed to Devin).
@@ -160,6 +164,10 @@ program
   .option("-n, --create-new", "Create .new copies for all changed files")
   .option("--allow-downgrade", "Allow downgrading to an older version")
   .option("--migrate", "Apply pending file migrations (renames/deletions)")
+  .option(
+    "--language <code>",
+    "Source-template language (en | zh). One-shot; does not modify config.yaml.",
+  )
   .action(async (options: Record<string, unknown>) => {
     try {
       await update({
@@ -169,6 +177,7 @@ program
         createNew: options.createNew as boolean,
         allowDowngrade: options.allowDowngrade as boolean,
         migrate: options.migrate as boolean,
+        language: options.language as string | undefined,
       });
     } catch (error) {
       console.error(

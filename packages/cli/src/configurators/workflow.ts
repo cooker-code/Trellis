@@ -6,7 +6,7 @@ import { copyTrellisDir } from "../templates/extract.js";
 
 // Import trellis templates (generic, not project-specific)
 import {
-  workflowMdTemplate,
+  getWorkflowTemplate,
   configYamlTemplate,
   gitignoreTemplate,
   gitattributesTemplate,
@@ -70,6 +70,12 @@ export interface WorkflowOptions {
    * entry for non-native workflows so update.ts treats them as user-managed.
    */
   workflowMdOverride?: string;
+  /**
+   * Source-template language code (i18n). When set to a non-`en` locale,
+   * locale-suffixed template files (`workflow.<locale>.md`) are preferred,
+   * falling back to the English source. Default `en`.
+   */
+  language?: string;
 }
 
 /**
@@ -130,7 +136,9 @@ export async function createWorkflowStructure(
   const skipSpecTemplates = options?.skipSpecTemplates ?? false;
   const packages = options?.packages;
   const remoteSpecPackages = options?.remoteSpecPackages;
-  const workflowMd = options?.workflowMdOverride ?? workflowMdTemplate;
+  const language = options?.language ?? "en";
+  const workflowMd =
+    options?.workflowMdOverride ?? getWorkflowTemplate(language);
 
   // Create base .trellis directory
   ensureDir(path.join(cwd, DIR_NAMES.WORKFLOW));

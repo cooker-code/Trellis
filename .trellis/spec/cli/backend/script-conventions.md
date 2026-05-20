@@ -1519,6 +1519,142 @@ When adding a new accessor in `common/config.py`:
 
 ---
 
+## i18n Module (`common/i18n.py` + `common/i18n_strings/<locale>.py`)
+
+User-facing strings printed by Python entry scripts (`task.py`,
+`init_developer.py`, `add_session.py`, …) MUST go through the `t(key)`
+indirection in `common/i18n.py`, never inline `print("中文字符串")` in the
+script body. Locale resolution is centralized; per-locale dictionaries are
+swapped lazily.
+
+### Why a sub-package, not a single dict literal
+
+```
+common/
+├── i18n.py                  # API: set_locale / get_locale / t
+└── i18n_strings/
+    ├── __init__.py          # empty marker
+    ├── en.py                # STRINGS: dict[str, str]  authoritative source
+    └── zh.py                # STRINGS: dict[str, str]  translation
+```
+
+Reasons:
+
+1. **Diff hygiene.** A translation PR touches only `zh.py`. A new English
+   string touches only `en.py`. Drift detection (`packages/cli/scripts/check-i18n-drift.js`)
+   compares `STRINGS` key sets between `en.py` / `zh.py` and reports missing
+   keys without parsing markdown.
+2. **Symmetry with the parallel-suffix template decision.** Source templates
+   use `*.zh.md` next to `*.md`; Python strings use `i18n_strings/zh.py`
+   next to `en.py`. One mental model.
+3. **Lazy load.** Under `language: en`, `i18n_strings/zh.py` never imports.
+   `_ensure_loaded(locale)` runs `from .i18n_strings.zh import STRINGS` only
+   when the active locale demands it.
+4. **Stdlib-only.** No `gettext`, no `babel`, no `.po` files. Each locale
+   bundle is a plain `dict[str, str]` literal. Keeps the
+   "Python: stdlib only" rule (see top of this spec) intact.
+
+### Locale resolution priority chain
+
+`common/i18n.py` mirrors the TS-side resolution order so both ends observe
+the same locale on every run:
+
+```
+1. explicit code passed to set_locale(code=...)
+2. environment variable TRELLIS_LANGUAGE
+3. config.yaml `language` (via common.config.get_language)
+4. default "en"
+```
+
+Item 3 routes through `_load_config` like every other config key — see
+"Config helpers" above. There is no separate parser. The TS CLI's
+`--language` flag exports `process.env.TRELLIS_LANGUAGE` for child Python
+processes so the priority chain stays consistent across the language
+boundary.
+
+### `t(key, **kwargs)` semantics
+
+```python
+def t(key: str, **kwargs) -> str:
+    """Translate. Falls back to English then to the key string itself."""
+    bundle = _loaded_strings.get(_current_locale, {})
+    raw = bundle.get(key)
+    if raw is None and _current_locale != DEFAULT_LANGUAGE:
+        # missing translation → English
+        _ensure_loaded(DEFAULT_LANGUAGE)
+        raw = _loaded_strings[DEFAULT_LANGUAGE].get(key)
+    if raw is None:
+        return key  # last-resort: return the key as visible diagnostic
+    return raw.format(**kwargs) if kwargs else raw
+```
+
+The three-level fallback (`zh` → `en` → key string) is mandatory:
+
+- A missing `zh` key must NOT raise — translations lag behind English by
+  design, and a `KeyError` would crash a user-facing CLI run.
+- The final "return the key itself" tier is a *visible diagnostic* — when
+  a user sees `init_developer.usage` printed verbatim, they know the key
+  is missing from BOTH bundles, not silently swallowed.
+
+### Key naming convention
+
+`<file_stem>.<short_action>` — e.g. `init_developer.usage`,
+`task_create.success`, `add_session.already_exists`. Flat namespace, no
+nested dicts, no hierarchical lookup. Drift detection only has to compare
+key sets; nesting would add a parser.
+
+### What does NOT go through `t(key)`
+
+- Technical identifiers users SHELL into: command names, flag names, env
+  var names, file paths, JSON keys, git branch names. These are stable
+  across locales by design (matches the project-wide rule "do not translate
+  technical names").
+- Stack traces, debug-only logging (`logger.debug`), internal assertions.
+  Translating these slows debugging and bloats bundles.
+- Strings that exist only in source comments / docstrings (those are
+  developer-facing, not user-facing).
+
+The rule of thumb: if a non-developer end-user reads it on stdout/stderr,
+it goes through `t(key)`. Otherwise, leave it as a literal English string.
+
+### Entry-script integration
+
+Every Python script that prints user-facing text must call `set_locale()`
+once at the top of `main()`:
+
+```python
+# init_developer.py
+from common.i18n import set_locale, t
+
+def main() -> None:
+    set_locale()  # reads TRELLIS_LANGUAGE env / config.yaml / "en"
+
+    if len(sys.argv) < 2:
+        print(t("init_developer.usage", script=sys.argv[0]))
+        sys.exit(1)
+    ...
+```
+
+`set_locale()` with no args triggers the priority chain. Pass an explicit
+`code=` only in tests or when a parent process has already resolved the
+locale and wants to inject it.
+
+### Tests required for new keys
+
+When adding a key:
+
+1. Add the row to `i18n_strings/en.py` (authoritative). PR fails CI if the
+   English bundle is missing.
+2. Optionally add to `i18n_strings/zh.py` — drift script reports missing
+   translations as warnings (not errors), so untranslated keys ship as
+   English fallback without blocking the merge.
+3. Unit test: `set_locale("zh")` → `t(key)` returns the Chinese string;
+   `set_locale("en")` → returns the English string.
+4. Unit test: missing `zh` key → falls back to English, no `KeyError`.
+5. Unit test: missing in BOTH → returns the key itself, no `KeyError`.
+
+---
+
 ## Monorepo Config API (`common/config.py`)
 
 ### Config Functions
