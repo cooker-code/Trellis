@@ -4,6 +4,12 @@
 delete process.env.TRELLIS_CONTEXT_ID;
 delete process.env.OPENCODE_RUN_ID;
 
+// TRELLIS_LANGUAGE is a production override honored by both `resolveLanguage`
+// (TS) and `_resolve_locale` (Python). A dev who exports `TRELLIS_LANGUAGE=zh`
+// in their shell would otherwise have all integration tests silently pick up
+// the Chinese source-template, breaking expected-text assertions.
+delete process.env.TRELLIS_LANGUAGE;
+
 // Strip *_PROJECT_DIR vars: shared-hooks/session-start.py prefers them over
 // JSON cwd / process cwd, so a dev running tests inside a Claude Code /
 // Copilot / etc. session would otherwise have the hook read the *real*

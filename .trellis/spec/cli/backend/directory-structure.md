@@ -423,6 +423,7 @@ Packages that received a remote template download (tracked via `remoteSpecPackag
 - Use `.md.txt` or `.yaml.txt` for template files
 - Update dogfooding sources (`.cursor/`, `.claude/`, `.trellis/scripts/`) when making changes
 - Always use `python3` explicitly when documenting script invocation (Windows compatibility)
+- For locale-variant templates, use parallel-suffix files (`workflow.zh.md` next to `workflow.md`) and let the aggregation layer pick by locale; landed file name is always suffix-stripped
 
 ### DON'T
 
@@ -430,6 +431,8 @@ Packages that received a remote template download (tracked via `remoteSpecPackag
 - Don't duplicate content between templates and dogfooding sources
 - Don't put project-specific content in generic templates
 - Don't use dogfooding for spec/ (users fill these in)
+- Don't ship locale-variant templates as top-level `const readTemplate(...)` — they freeze at module load and cannot be re-resolved by locale. Use a `getXxxTemplate(locale)` function (see Design Decision below)
+- Don't change the `.template-hashes.json` key to include locale suffix — keys must stay locale-agnostic landed paths so `analyzeChanges` / `manifest-prune` / `uninstall` keep working unchanged
 
 ---
 
@@ -505,3 +508,77 @@ const destDir = INSTALL_PATHS[template.type] || INSTALL_PATHS.spec;
 1. Add entry to `INSTALL_PATHS`
 2. Add templates to `index.json` with new type
 3. No code changes needed for download logic
+
+### i18n: Parallel-Suffix Templates with Source-Layer Picking
+
+**Context**: Need to ship Chinese (and future) translations of `workflow.md`, `agents/*.md`, `common/{commands,skills}/*.md` etc. while staying mergeable with the upstream English-only repo and keeping `.template-hashes.json` / `analyzeChanges` / `uninstall` semantics unchanged.
+
+**Options Considered**:
+1. Branch strategy (`i18n-zh` branch) — zero CLI change, but every user has to maintain the fork themselves; fails the "config switch" requirement.
+2. Separate `i18n/zh/` mirror tree — central, but doubles directory maintenance and a misnamed mirror file ships silently.
+3. Parallel-suffix files (`workflow.zh.md` next to `workflow.md`, same directory) — chosen.
+4. Runtime locale lookup (read `.zh.md` from the live `.trellis/` instead of the source) — would require every platform integration (`.claude/`, `.codex/`, `.cursor/` …) to know about locale. Rejected.
+
+**Decision**: Translations live as parallel-suffix files in the source templates. The aggregation layer (`templates/trellis/index.ts`, `templates/common/index.ts`) picks the file by locale and **lands it under the suffix-stripped name**. Landing path stays English-only — every downstream consumer (configurators, file-writer, hash tracker, manifest-prune, uninstall, migrations) is locale-blind.
+
+**Example layout**:
+```
+packages/cli/src/templates/trellis/
+├── workflow.md          ← English source (unchanged forever; mergeable with upstream)
+├── workflow.zh.md       ← Chinese translation (parallel; safe to add/remove)
+└── agents/
+    ├── implement.md
+    └── implement.zh.md  ← optional; missing → silent fallback to English
+```
+
+**Resolution rule** (applied in `templates/trellis/index.ts` / `templates/common/index.ts`):
+```ts
+function pickByLocale(stem: string, ext: string, locale: string): string {
+  if (locale !== "en") {
+    const localized = readTemplateOrUndefined(`${stem}.${locale}${ext}`);
+    if (localized !== undefined) return localized;
+    // fall through — silently fall back to English (R1: must not throw)
+  }
+  return readTemplate(`${stem}${ext}`);
+}
+```
+
+**Hash key contract**: `.template-hashes.json` key is **always** the suffix-stripped landed path (e.g. `.trellis/workflow.md`). Hash value is SHA256 of the **landed content** — which means the recorded hash naturally tracks the active locale. Switching locale + rerunning sync rewrites the hash; `analyzeChanges` and `manifest-prune` remain unmodified.
+
+**Why this works**:
+- ✅ Upstream `git merge` never conflicts — English originals are untouched.
+- ✅ Missing translation falls back silently to English without raising.
+- ✅ Existing `analyzeChanges`, `manifest-prune`, `uninstall`, migrations are zero-modified.
+- ⚠️ Locale switch requires re-running `trellis init` / `trellis update` — hash changes are expected, not user-modification.
+
+**Locale resolution priority** (single rule, mirrored on TS and Python):
+```
+--language flag  >  TRELLIS_LANGUAGE env  >  config.yaml: language  >  "en"
+```
+The TS-side flag handler sets `process.env.TRELLIS_LANGUAGE` so the Python scripts inherit through the same priority chain. Invalid values warn to stderr and fall back to `"en"` — never raise.
+
+### i18n Common Mistake: Top-level `const` Template Cannot Be Locale-Aware
+
+**Symptom**: After adding `workflow.zh.md`, the file lands but the content is still English. Tests pass for `getWorkflowTemplate("zh")` but the actual init/update path still ships English.
+
+**Cause**: `templates/trellis/index.ts` originally exported `workflowMdTemplate` as a top-level `const` (`const workflowMdTemplate = readTemplate("workflow.md")`). The value freezes at module load — by the time `init.ts` resolves the locale, the const has already been computed against the English source.
+
+**Fix**: Convert any locale-variant template from a top-level `const readTemplate(...)` to a function `getXxxTemplate(locale)` and update **every** import site:
+
+```ts
+// Wrong — frozen at module load
+export const workflowMdTemplate = readTemplate("workflow.md");
+
+// Correct — resolved at call site
+const cache = new Map<string, string>();
+export function getWorkflowTemplate(locale: string = "en"): string {
+  if (cache.has(locale)) return cache.get(locale)!;
+  let content: string | undefined;
+  if (locale !== "en") content = readTemplateOrUndefined(`workflow.${locale}.md`);
+  content ??= readTemplate("workflow.md");
+  cache.set(locale, content);
+  return content;
+}
+```
+
+**Prevention**: When introducing locale variants, grep for **every** `readTemplate(` at the top level — each one needs the same treatment. Today the affected list is `workflowMdTemplate` (4 import sites: `init.ts`, `update.ts:43`, `update.ts:646`, `workflow.ts`). Filesystem-driven aggregators (`listMarkdownFiles("commands")`, `listMdAgents`) need the picker injected at the listing call instead.

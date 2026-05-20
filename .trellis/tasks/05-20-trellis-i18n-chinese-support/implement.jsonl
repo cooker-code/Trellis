@@ -1,0 +1,8 @@
+{"file": ".trellis/spec/cli/backend/directory-structure.md", "reason": "TypeScript CLI 目录布局：configurators/、templates/、commands/、migrations/ 的职责。sync 时按 locale 选源文件需要在 configurators 层介入。"}
+{"file": ".trellis/spec/cli/backend/platform-integration.md", "reason": "configurators 的 collectTemplates / writeSkills / writeAgents 流程；i18n 在这一层选源文件落地，必须不破坏现有平台分发。"}
+{"file": ".trellis/spec/cli/backend/migrations.md", "reason": "新增 config.yaml.language 字段 + 模板新增 *.zh.md，需走 migrations manifest（src/migrations/manifests/{version}.json）。"}
+{"file": ".trellis/spec/cli/backend/script-conventions.md", "reason": "Python 脚本规范：3.9+、stdlib-only、PEP 604 限制。新增 scripts/common/i18n.py 必须遵守。"}
+{"file": ".trellis/spec/cli/backend/workflow-state-contract.md", "reason": "workflow.md 含 [workflow-state:*] breadcrumb 标签的解析契约；中文版翻译不可破坏标签语法和必出现位置。"}
+{"file": ".trellis/spec/cli/backend/error-handling.md", "reason": "i18n.py 缺翻译时回落策略需符合错误处理约定（warn 而非 raise）。"}
+{"file": ".trellis/spec/cli/backend/logging-guidelines.md", "reason": "drift 检测脚本与 i18n.py 的日志输出需遵守日志级别与结构。"}
+{"file": "tasks/05-20-trellis-i18n-chinese-support/prd.md", "reason": "本任务的需求 / ADR 决策 / PR 拆分；实施全程的事实来源。"}
