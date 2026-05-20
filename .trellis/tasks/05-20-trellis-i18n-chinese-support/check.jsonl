@@ -1,1 +1,9 @@
-{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/cli/unit-test/index.md", "reason": "Vitest + 集中式 test/ 目录的总览。新增 i18n 相关测试入口对齐这里。"}
+{"file": ".trellis/spec/cli/unit-test/conventions.md", "reason": "测试文件命名 / 结构 / 断言模式 / env-leak 隔离；i18n 的单元测试必须遵守。"}
+{"file": ".trellis/spec/cli/unit-test/integration-patterns.md", "reason": "命令级集成测试模式；trellis init/sync --language zh 的端到端测试需采用此模式。"}
+{"file": ".trellis/spec/cli/unit-test/mock-strategies.md", "reason": "最小 mock 原则；drift 检测脚本测试需要 mock fs/git，遵循此规范。"}
+{"file": ".trellis/spec/cli/backend/quality-guidelines.md", "reason": "代码标准与禁用模式，check 阶段对照判断。"}
+{"file": ".trellis/spec/cli/backend/error-handling.md", "reason": "错误类型与处理策略；i18n 回落不可静默吞错亦不可 raise。"}
+{"file": ".trellis/spec/cli/backend/script-conventions.md", "reason": "Python 脚本约束（3.9+ / stdlib-only），check i18n.py 是否合规。"}
+{"file": ".trellis/spec/cli/backend/workflow-state-contract.md", "reason": "中文 workflow.md 的 breadcrumb 标签必须依然可解析；check 阶段需逐条核对。"}
+{"file": "tasks/05-20-trellis-i18n-chinese-support/prd.md", "reason": "Acceptance Criteria 与 Definition of Done 是 check 阶段的对照表。"}
