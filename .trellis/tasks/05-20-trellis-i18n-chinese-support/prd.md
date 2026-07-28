@@ -1,10 +1,10 @@
-# Trellis i18n 中文支持
+# Trellis i18n（国际化）中文支持
 
-## Goal
+## 目标
 
 为 Trellis 工作流系统增加中文支持。让 `.trellis/` 目录下面向人类/LLM 阅读的文件（workflow.md、agents/*.md、commands、skills、bundled-skills、spec 模板，以及 Python 脚本用户文案）可以通过一个配置开关在中英文之间切换，**不破坏现有架构**，**不阻碍跟上游 GitHub 仓库的同步与合并**。CLI TypeScript 文案暂缓，当前只实施 PR1-B、PR2、PR3。
 
-## What I already know
+## 已确认事实
 
 - 仓库结构：
   - 真正的"源"在 `packages/cli/src/templates/`（TypeScript CLI 同步到用户项目的 `.trellis/` 等目录）
@@ -17,14 +17,14 @@
   - `packages/cli/src/templates/markdown/spec/` — spec 模板
 - 仓库是 fork：`origin` 指向 `cooker-code/Trellis.git`（疑似 fork 自 `mindfoldhq/trellis`），需要保持可以从上游 merge
 
-## Assumptions (temporary)
+## 暂定假设
 
 - 用户确认当前中文化范围包含：完整 `.trellis/workflow.md`、agents、common commands/skills、bundled-skills、spec 模板和 Python 脚本用户文案；CLI TypeScript 文案暂缓
 - 不需要翻译："技术名词"（命令名、变量名、字段名、JSON key、Python 标识符、git 分支名等）—— 用户已明确说明
 - 不需要翻译：代码逻辑、内部 docstring（除非影响 LLM 行为）
 - 配置项的位置应该在 `.trellis/config.yaml`（已经是项目级配置文件）
 
-## Open Questions（需要用户确认的关键决策）
+## 待确认问题（需要用户确认的关键决策）
 
 1. ~~**存储方式**~~ ✅ 已决：并列后缀文件
 2. ~~**范围**~~ ✅ 已决：L2
@@ -32,13 +32,13 @@
 4. ~~**CLI 汉化边界**~~ ✅ 已决：当前暂不处理 CLI TypeScript 文案；只实施 PR1-B、PR2、PR3
 5. ~~**翻译深度**~~ ✅ 已决：翻译全部面向人类/LLM 的自然语言，包括 HTML/Markdown 注释；专有名称和技术标识符保持英文
 
-## Decision (ADR-lite)
+## 决策（ADR-lite，轻量架构决策记录）
 
 ### 决策 1：翻译产物存储方式 = 并列后缀文件
 
-**Context**：本仓库是 fork（origin: cooker-code/Trellis，上游 mindfoldhq/trellis），用户要求"和 GitHub 保持代码更新"。任何修改原英文文件的方案都会跟上游 merge 冲突。
+**Context（上下文）**：本仓库是 fork（分叉仓库；origin: cooker-code/Trellis，上游 mindfoldhq/trellis），用户要求“和 GitHub 保持代码更新”。任何修改原英文文件的方案都会跟上游 merge（合并）冲突。
 
-**Decision**：在模板源 `packages/cli/src/templates/` 内，原英文文件保持不动；中文版以同名 + `.zh.md` / `.zh.py` / `.zh.yaml` 后缀的"并列文件"形式新增。CLI sync 时按 `language` 配置选择源文件，落地为统一文件名（脱后缀），保证项目里 `.trellis/workflow.md` 始终是当前语言版本。
+**Decision（决策）**：在模板源 `packages/cli/src/templates/` 内，原英文文件保持不动；中文版以同名 + `.zh.md` / `.zh.py` / `.zh.yaml` 后缀的“并列文件”形式新增。CLI（命令行工具）sync 时按 `language` 配置选择源文件，落地为统一文件名（脱后缀），保证项目里 `.trellis/workflow.md` 始终是当前语言版本。
 
 **Consequences**：
 - ✅ 上游 merge 永远不冲突（英文原文未动）
@@ -49,9 +49,9 @@
 
 ### 决策 2：翻译范围 = L2（三个内容 PR）
 
-**Context**：模板内可翻译文件分布在多个目录，价值最高的是 LLM 每轮都读到的指令文档。CLI 平台模板（claude/codex/...）是 IDE 适配层，原文短小且少阅读，性价比低；CLI TypeScript 输出是少量交互提示，引入 i18n runtime 复杂度高。
+**Context（上下文）**：模板内可翻译文件分布在多个目录，价值最高的是 LLM（大语言模型）每轮都读到的指令文档。CLI 平台模板（claude/codex/...）是 IDE（集成开发环境）适配层，原文短小且少阅读，性价比低；CLI TypeScript 输出是少量交互提示，引入 i18n runtime（运行时）复杂度高。
 
-**原 Decision**：覆盖 `templates/trellis/`（workflow + scripts + agents）、`templates/common/{commands,skills,bundled-skills}/` 下所有 markdown、`templates/markdown/spec/` 下 spec 模板、以及 Python 脚本中面向用户的 print/error 文案。原计划不覆盖各平台目录和 CLI TypeScript。
+**原 Decision（决策）**：覆盖 `templates/trellis/`（workflow + scripts + agents）、`templates/common/{commands,skills,bundled-skills}/` 下所有 Markdown（标记语言）、`templates/markdown/spec/` 下 spec 模板、以及 Python 脚本中面向用户的 print/error 文案。原计划不覆盖各平台目录和 CLI TypeScript。
 
 **范围确认（2026-07-27）**：用户要求先完成前三个内容 PR：PR1-B 完整翻译 `workflow.md`，PR2 覆盖 agents + common commands/skills，PR3 覆盖 bundled-skills + spec 模板 + Python 用户文案。CLI TypeScript command/help/prompt/output 暂缓。技术标识符、命令名、flag、路径、JSON key 保持英文。
 
@@ -63,9 +63,9 @@
 
 ### 决策 3：运行时机 = Sync 时落地
 
-**Context**：LLM 每轮读取的 `.trellis/workflow.md` 是被多平台（claude/codex/cursor/...）的集成层"硬编码"路径引用的。如果在运行时按 locale 切换文件路径，需要在每个平台的读取入口都改。
+**Context（上下文）**：LLM 每轮读取的 `.trellis/workflow.md` 是被多平台（claude/codex/cursor/...）的集成层“硬编码”路径引用的。如果在运行时按 locale（区域语言）切换文件路径，需要在每个平台的读取入口都改。
 
-**Decision**：在 `trellis init` / `trellis sync` 阶段读取 `config.yaml.language`，决定是把 `workflow.md` 还是 `workflow.zh.md` 复制到目标位置（**统一落地为不带后缀的文件名**，避免污染下游路径）。Python 脚本里 `print/click.echo` 文案则启动时读一次 config 选 dict。切换语言 = 改 config + 重跑 sync。
+**Decision（决策）**：在 `trellis init` / `trellis sync` 阶段读取 `config.yaml.language`，决定是把 `workflow.md` 还是 `workflow.zh.md` 复制到目标位置（**统一落地为不带后缀的文件名**，避免污染下游路径）。Python 脚本里 `print/click.echo` 文案则启动时读一次 config 选 dict（字典）。切换语言 = 改 config + 重跑 sync。
 
 **Consequences**：
 - ✅ 所有平台的"读 .trellis/workflow.md"路径不变
@@ -75,11 +75,11 @@
 
 ### 决策 4：翻译全部自然语言，保留专有名称
 
-**Decision**：`*.zh.md` 中所有面向人类或 LLM 的自然语言正文、表格、提示和 HTML/Markdown 注释均翻译为中文。产品名、平台名、Trellis 领域术语及技术标识符保持英文，避免同一概念出现多个中文别名，也避免破坏 runtime parser。
+**Decision（决策）**：`*.zh.md` 中所有面向人类或 LLM 的自然语言正文、表格、提示和 HTML（超文本标记语言）/Markdown 注释均翻译为中文。产品名、平台名、Trellis 领域术语及技术标识符保持英文，避免同一概念出现多个中文别名，也避免破坏 runtime parser（运行时解析器）。
 
 **必须原样保留**：命令/flag、路径、环境变量、JSON key、状态值、代码标识符、占位符、Phase/Step 编号、`[workflow-state:*]` 标签、平台 marker，以及 Claude Code / Cursor / Codex / Pi 等平台名。
 
-## Requirements
+## 需求
 
 ### R1 配置与回落
 - [ ] `.trellis/config.yaml` 引入 `language` 字段，默认 `en`，合法值 `en` / `zh`
@@ -113,7 +113,7 @@
 - [ ] `docs-site` 增补 i18n 使用页（仅英文 + 列出 zh 路线图）
 - [ ] 默认 `language=en`（或不配置）时，与现状完全等同
 
-## Acceptance Criteria
+## 验收标准
 
 - [ ] 在 `.trellis/config.yaml` 设 `language: zh` 后跑 `trellis update`，`.trellis/workflow.md` 是完整中文内容（不存在占位英文正文）
 - [ ] Claude/Cursor/Pi/Codex 等平台最终生成的 common commands/skills 为中文，文件名和调用方式不变
@@ -125,7 +125,7 @@
 - [ ] Python 脚本：`task.py create "x"` 等命令在 zh 模式下输出中文提示
 - [ ] 单元测试：(a) sync 时按 locale 选源文件 (b) 缺失回落 (c) `.template-hashes.json` 不被中文模板污染 (d) i18n.py 的 `t()` 切换效果
 
-## Implementation Plan（小 PR 拆分）
+## 实施计划（小 PR 拆分）
 
 **PR1-A — i18n 机制骨架（已合入 main，内容不完整）**
 - 已完成 locale 解析、`workflow.<locale>.md` 选择、hash 透明、drift 脚本和 Python i18n 骨架
@@ -153,7 +153,7 @@
 - L3：各平台专属模板（claude/codex/cursor/...）中不由 common templates 生成的内容
 - 新增更多语言（ja / es / fr）
 
-## Out of Scope（暂不做）
+## 不在范围内（暂不做）
 
 - 翻译 spec 内的用户业务文档（这些是用户自己写的，不是模板）
 - 翻译 `docs-site` 全站
@@ -162,14 +162,14 @@
 - 多于中英两种语言（先 i18n 框架到位，新增语言留作后续）
 - 自动机器翻译——翻译文本由人工/LLM 离线产生并 review，不在运行时调用翻译 API
 
-## Definition of Done
+## 完成定义
 
 - 单元测试新增并通过
 - `pnpm lint && pnpm typecheck && pnpm test` 全绿
 - 文档更新：在 `README.md` / `docs-site` 增补 i18n 使用说明的英文条目；中文等同条目在 `README_CN.md`
 - 不破坏 `trellis init` / sync / migration 现有行为（`language` 默认未启用时与现状完全一致）
 
-## Technical Notes
+## 技术说明
 
 - 关键文件：
   - `.trellis/.template-hashes.json` — 模板同步状态，必须设计成对 i18n 透明
@@ -179,7 +179,7 @@
 - 上游同步约束：英文原文路径不能变；新增内容应"加在旁边"而不是"替换"
 - 已经存在 `README_CN.md`，说明项目对中英双版有先例
 
-## Research References
+## 研究参考
 
 * [`research/sync-call-chain.md`](research/sync-call-chain.md) — init/update 是事实上的 sync 入口；`workflowMdTemplate` 是顶层 const 必须改函数化；介入点 = 源端聚合层（A）+ CLI 入口注入（D）。
 * [`research/template-hashes.md`](research/template-hashes.md) — hash 跟踪以"落地路径+落地内容"为契约；i18n 在源选择层透明，hash 系统零改动；切语言后必须 `updateHashes` 否则误判用户手改。

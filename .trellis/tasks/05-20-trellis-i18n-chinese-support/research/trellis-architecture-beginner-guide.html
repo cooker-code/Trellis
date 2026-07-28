@@ -302,7 +302,7 @@
 
   <main>
     <header class="hero">
-      <div class="eyebrow">Interactive architecture field guide</div>
+      <div class="eyebrow">交互式架构导览</div>
       <h1>Trellis 到底是怎么工作的？</h1>
       <p class="lede">它不是一个常驻 AI 服务。它先用 TypeScript CLI 把工作流安装进项目，再由项目内的 Python、JS、Markdown 和平台 hooks，在正确时机把 task、spec、workflow 与 journal 交给 AI。</p>
       <div class="notice">纯 CSS / 原生 HTML 交互，不依赖 JavaScript</div>
@@ -316,11 +316,11 @@
       <h2>先分清三个角色</h2>
       <p class="section-intro">读源码时始终问：我看到的是模具、生成器，还是已经落地的运行时？</p>
       <div class="orbit">
-        <details open><summary><span class="badge">SOURCE</span><strong>模板源</strong></summary><p><code>packages/cli/src/templates/</code> 是权威模具。维护 Trellis 本身通常从这里改。</p></details>
-        <details><summary><span class="badge">COMPILER</span><strong>Configurator</strong></summary><p>把通用 workflow 语义编译为 Claude、Cursor、Codex、Pi 等平台格式。</p></details>
-        <details><summary><span class="badge">INSTALLER</span><strong>TypeScript CLI</strong></summary><p><code>init</code> 首次生成，<code>update</code> 安全同步，<code>uninstall</code> 按所有权删除。</p></details>
-        <details><summary><span class="badge">RUNTIME</span><strong>项目文件</strong></summary><p><code>.trellis/</code>、平台 hooks、skills、agents 是每天真正运行的部分。</p></details>
-        <details><summary><span class="badge">CONSUMER</span><strong>AI 会话</strong></summary><p>AI 最终看到当前任务、阶段提醒、相关规范和可用工具，而不必理解模板系统。</p></details>
+        <details open><summary><span class="badge">源</span><strong>模板源</strong></summary><p><code>packages/cli/src/templates/</code> 是权威模具。维护 Trellis 本身通常从这里改。</p></details>
+        <details><summary><span class="badge">编译器</span><strong>Configurator（配置器）</strong></summary><p>把通用 workflow（工作流）语义编译为 Claude、Cursor、Codex、Pi 等平台格式。</p></details>
+        <details><summary><span class="badge">安装器</span><strong>TypeScript CLI（命令行工具）</strong></summary><p><code>init</code> 首次生成，<code>update</code> 安全同步，<code>uninstall</code> 按所有权删除。</p></details>
+        <details><summary><span class="badge">运行时</span><strong>项目文件</strong></summary><p><code>.trellis/</code>、平台 hooks（钩子）、skills（技能）、agents（代理）是每天真正运行的部分。</p></details>
+        <details><summary><span class="badge">消费者</span><strong>AI 会话</strong></summary><p>AI 最终看到当前任务、阶段提醒、相关规范和可用工具，而不必理解模板系统。</p></details>
       </div>
     </section>
 
@@ -357,29 +357,29 @@
       <h2>架构探索器</h2>
       <p class="section-intro">点击任一节点，下方会切换为该节点的职责、输入输出和源码入口。</p>
       <div class="diagram arch-explorer">
-        <div class="diagram-head"><span class="diagram-title">Diagram 01 · 从模具到 AI 会话</span><p>蓝色链路是生成路径，绿色节点是项目内运行时。</p></div>
+        <div class="diagram-head"><span class="diagram-title">图 01 · 从模具到 AI 会话</span><p>蓝色链路是生成路径，绿色节点是项目内运行时。</p></div>
         <input class="control-input" type="radio" name="arch" id="arch-template" checked>
         <input class="control-input" type="radio" name="arch" id="arch-cli">
         <input class="control-input" type="radio" name="arch" id="arch-config">
         <input class="control-input" type="radio" name="arch" id="arch-runtime">
         <input class="control-input" type="radio" name="arch" id="arch-ai">
         <div class="arch-map">
-          <label class="arch-node" for="arch-template"><span class="badge">SOURCE</span><b>Templates</b><span>workflow / scripts / skills</span></label>
+          <label class="arch-node" for="arch-template"><span class="badge">源</span><b>Templates（模板）</b><span>workflow / scripts / skills</span></label>
           <div class="arch-arrow">→</div>
           <label class="arch-node" for="arch-cli"><span class="badge">CLI</span><b>init / update</b><span>选择、写入、迁移、追踪</span></label>
           <div class="arch-arrow">→</div>
-          <label class="arch-node" for="arch-config"><span class="badge">COMPILE</span><b>Configurator</b><span>生成平台专属格式</span></label>
+          <label class="arch-node" for="arch-config"><span class="badge">编译</span><b>Configurator（配置器）</b><span>生成平台专属格式</span></label>
           <div class="arch-down">↓</div>
-          <label class="arch-node arch-runtime" for="arch-runtime"><span class="badge">RUNTIME</span><b>.trellis + 平台目录</b><span>task / spec / hooks / plugins</span></label>
+          <label class="arch-node arch-runtime" for="arch-runtime"><span class="badge">运行时</span><b>.trellis + 平台目录</b><span>task / spec / hooks / plugins</span></label>
           <div class="arch-down">↓</div>
-          <label class="arch-node arch-ai" for="arch-ai"><span class="badge">CONSUME</span><b>AI Session</b><span>获得当前所需上下文</span></label>
+          <label class="arch-node arch-ai" for="arch-ai"><span class="badge">消费</span><b>AI Session（会话）</b><span>获得当前所需上下文</span></label>
         </div>
         <div class="arch-details">
-          <div class="arch-detail d-template"><strong>Templates：权威模具</strong><p>输入是仓库内静态模板；输出是等待 CLI 选择的内容集合。</p><code>packages/cli/src/templates/</code></div>
-          <div class="arch-detail d-cli"><strong>TypeScript CLI：总控</strong><p>解析语言、平台、项目类型和写入模式，组织 init/update/uninstall。</p><code>packages/cli/src/cli/index.ts</code> <code>packages/cli/src/commands/</code></div>
-          <div class="arch-detail d-config"><strong>Configurator：平台编译器</strong><p>解析占位符、frontmatter 与命令引用风格，生成不同平台的最终字节。</p><code>packages/cli/src/configurators/</code></div>
-          <div class="arch-detail d-runtime"><strong>项目 Runtime：文件化状态机</strong><p>Python scripts 管 task/context，hooks/plugins 连接宿主平台，Markdown 承载流程和规范。</p><code>.trellis/</code> <code>.claude/</code> <code>.pi/</code></div>
-          <div class="arch-detail d-ai"><strong>AI Session：最终消费者</strong><p>SessionStart 给方向，每轮 breadcrumb 给下一步，sub-agent 启动时再加载定向 spec。</p><code>workflow → task → spec → agent</code></div>
+          <div class="arch-detail d-template"><strong>Templates（模板）：权威模具</strong><p>输入是仓库内静态模板；输出是等待 CLI 选择的内容集合。</p><code>packages/cli/src/templates/</code></div>
+          <div class="arch-detail d-cli"><strong>TypeScript CLI（命令行工具）：总控</strong><p>解析语言、平台、项目类型和写入模式，组织 init/update/uninstall。</p><code>packages/cli/src/cli/index.ts</code> <code>packages/cli/src/commands/</code></div>
+          <div class="arch-detail d-config"><strong>Configurator（配置器）：平台编译器</strong><p>解析占位符、frontmatter（头部元数据）与命令引用风格，生成不同平台的最终字节。</p><code>packages/cli/src/configurators/</code></div>
+          <div class="arch-detail d-runtime"><strong>项目 Runtime（运行时）：文件化状态机</strong><p>Python scripts（脚本）管 task/context，hooks/plugins 连接宿主平台，Markdown 承载流程和规范。</p><code>.trellis/</code> <code>.claude/</code> <code>.pi/</code></div>
+          <div class="arch-detail d-ai"><strong>AI Session（会话）：最终消费者</strong><p>SessionStart 给方向，每轮 breadcrumb（面包屑）给下一步，sub-agent（子代理）启动时再加载定向 spec。</p><code>workflow → task → spec → agent</code></div>
         </div>
       </div>
     </section>
@@ -388,7 +388,7 @@
       <h2>Init / Update / Hash 三条链路</h2>
       <p class="section-intro">切换下面三个按钮，查看首次安装、后续升级与内容账本各自负责什么。</p>
       <div class="diagram css-tabs">
-        <div class="diagram-head"><span class="diagram-title">Diagram 02 · 模板生命周期</span><p>不依赖 JavaScript 的切换面板。</p></div>
+        <div class="diagram-head"><span class="diagram-title">图 02 · 模板生命周期</span><p>不依赖 JavaScript 的切换面板。</p></div>
         <input class="control-input" type="radio" name="pipe" id="pipe-init" checked>
         <input class="control-input" type="radio" name="pipe" id="pipe-update">
         <input class="control-input" type="radio" name="pipe" id="pipe-hash">
@@ -398,22 +398,22 @@
         <div class="panels">
           <div class="panel p-init"><div class="flow">
             <div class="flow-step"><small>01 PARSE</small><strong>解析环境</strong><p>平台、语言、Python、项目类型、monorepo。</p></div>
-            <div class="flow-step"><small>02 SKELETON</small><strong>创建 .trellis</strong><p>workflow、scripts、config、tasks、spec。</p></div>
-            <div class="flow-step"><small>03 COMPILE</small><strong>生成平台文件</strong><p>skills、agents、hooks、settings。</p></div>
+            <div class="flow-step"><small>02 骨架</small><strong>创建 .trellis</strong><p>workflow、scripts、config、tasks、spec。</p></div>
+            <div class="flow-step"><small>03 编译</small><strong>生成平台文件</strong><p>skills、agents、hooks、settings。</p></div>
             <div class="flow-step"><small>04 OWNERSHIP</small><strong>记录真正写入</strong><p>避免把用户会话数据误记为 Trellis 所有。</p></div>
-            <div class="flow-step"><small>05 ONBOARD</small><strong>初始化开发者</strong><p>identity、workspace、bootstrap task。</p></div>
+            <div class="flow-step"><small>05 入职</small><strong>初始化开发者</strong><p>identity、workspace、bootstrap task。</p></div>
           </div></div>
           <div class="panel p-update"><div class="flow">
             <div class="flow-step"><small>01 COLLECT</small><strong>重建期望 Map</strong><p>.trellis + 已启用平台的最终目标内容。</p></div>
             <div class="flow-step"><small>02 CLASSIFY</small><strong>对比磁盘与 hash</strong><p>区分上游更新与用户修改。</p></div>
-            <div class="flow-step"><small>03 PROTECT</small><strong>保护用户数据</strong><p>tasks、workspace、spec 不普通覆盖。</p></div>
+            <div class="flow-step"><small>03 保护</small><strong>保护用户数据</strong><p>tasks、workspace、spec 不普通覆盖。</p></div>
             <div class="flow-step"><small>04 APPLY</small><strong>迁移与写入</strong><p>安全项自动更新，冲突项交给用户。</p></div>
             <div class="flow-step"><small>05 REFRESH</small><strong>刷新 version/hash</strong><p>新内容成为下次更新的 base。</p></div>
           </div></div>
           <div class="panel p-hash"><div class="hash-ledger">
-            <div class="hash-file"><span class="badge">LAST WRITE</span><h3>.template-hashes.json</h3><p>记录 Trellis 上次成功写入的落地路径与内容 SHA256。</p></div>
+            <div class="hash-file"><span class="badge">上次写入</span><h3>.template-hashes.json</h3><p>记录 Trellis 上次成功写入的落地路径与内容 SHA256。</p></div>
             <div class="hash-op">⇄</div>
-            <div class="hash-file"><span class="badge">CURRENT DISK</span><h3>用户项目文件</h3><p>当前 hash 等于账本，说明用户没改；不等于，走冲突保护。</p></div>
+            <div class="hash-file"><span class="badge">当前磁盘</span><h3>用户项目文件</h3><p>当前 hash 等于账本，说明用户没改；不等于，走冲突保护。</p></div>
           </div></div>
         </div>
       </div>
@@ -423,11 +423,11 @@
       <h2>文件运行时：五种记忆，五种生命周期</h2>
       <p class="section-intro">点击每个文件节点展开。Trellis 不是把所有东西混成一个大 prompt。</p>
       <div class="orbit">
-        <details open><summary><span class="badge">PROCESS</span><strong>workflow.md</strong></summary><p>回答“现在按什么流程做”，包含阶段、门禁、平台路由和 breadcrumb。</p></details>
-        <details><summary><span class="badge">TASK</span><strong>tasks/&lt;task&gt;</strong></summary><p>回答“这次做什么”，包含 task.json、PRD、设计、计划与 JSONL context。</p></details>
-        <details><summary><span class="badge">CONTRACT</span><strong>spec/</strong></summary><p>回答“以后这类代码必须怎么写”，保存长期工程契约。</p></details>
-        <details><summary><span class="badge">MEMORY</span><strong>workspace/</strong></summary><p>回答“以前发生过什么”，保存 developer journal 与索引。</p></details>
-        <details><summary><span class="badge">SESSION</span><strong>.runtime/</strong></summary><p>回答“这个窗口正在做什么”，按 session key 隔离 active task。</p></details>
+        <details open><summary><span class="badge">流程</span><strong>workflow.md</strong></summary><p>回答“现在按什么流程做”，包含阶段、门禁、平台路由和 breadcrumb（面包屑）。</p></details>
+        <details><summary><span class="badge">任务</span><strong>tasks/&lt;task&gt;</strong></summary><p>回答“这次做什么”，包含 task.json、PRD、设计、计划与 JSONL context（上下文）。</p></details>
+        <details><summary><span class="badge">契约</span><strong>spec/</strong></summary><p>回答“以后这类代码必须怎么写”，保存长期工程契约。</p></details>
+        <details><summary><span class="badge">记忆</span><strong>workspace/</strong></summary><p>回答“以前发生过什么”，保存 developer（开发者）journal（日志）与索引。</p></details>
+        <details><summary><span class="badge">会话</span><strong>.runtime/</strong></summary><p>回答“这个窗口正在做什么”，按 session key（会话键）隔离 active task（活动任务）。</p></details>
       </div>
       <div class="callout"><span class="mark">S</span><div><strong>Session 隔离：</strong><code>active_task.py</code> 从平台 session/conversation/transcript id 或 <code>TRELLIS_CONTEXT_ID</code> 得到 key，写入 <code>.trellis/.runtime/sessions/&lt;key&gt;.json</code>。两个窗口因此可处理不同任务。</div></div>
     </section>
@@ -436,7 +436,7 @@
       <h2>上下文注入探索器</h2>
       <p class="section-intro">切换生命周期事件，观察“谁触发、读什么、AI 得到什么”。</p>
       <div class="diagram css-tabs">
-        <div class="diagram-head"><span class="diagram-title">Diagram 03 · Context 在什么时候进入 AI</span><p>方向概览与详细规范分时加载。</p></div>
+        <div class="diagram-head"><span class="diagram-title">图 03 · Context（上下文）在什么时候进入 AI</span><p>方向概览与详细规范分时加载。</p></div>
         <input class="control-input" type="radio" name="inject" id="inject-start" checked>
         <input class="control-input" type="radio" name="inject" id="inject-turn">
         <input class="control-input" type="radio" name="inject" id="inject-agent">
@@ -473,7 +473,7 @@
       <h2>Task 生命周期：点击步骤看读写文件</h2>
       <p class="section-intro">流程状态不等于聊天记忆。每一步都通过文件产生可检查的事实。</p>
       <div class="diagram">
-        <div class="diagram-head"><span class="diagram-title">Diagram 04 · 一个任务从创建到归档</span><p>展开任一步骤查看命令、状态和 I/O。</p></div>
+        <div class="diagram-head"><span class="diagram-title">图 04 · 一个任务从创建到归档</span><p>展开任一步骤查看命令、状态和 I/O（输入/输出）。</p></div>
         <div class="timeline">
           <details open><summary><span class="step-no">01</span><strong>创建任务</strong><span class="status">status: planning</span></summary><div class="step-body"><p><code>task.py create</code> 创建可审查的任务空间。</p><div class="io-list"><code>WRITE task.json</code><code>WRITE prd.md</code><code>SEED *.jsonl</code></div></div></details>
           <details><summary><span class="step-no">02</span><strong>规划与研究</strong><span class="status">planning</span></summary><div class="step-body"><p>轻量任务 PRD-only；复杂任务增加设计和执行计划。</p><div class="io-list"><code>WRITE design.md?</code><code>WRITE implement.md?</code><code>CURATE context jsonl</code></div></div></details>
@@ -500,7 +500,7 @@
       <h2>Hash 决策模拟器</h2>
       <p class="section-intro">选择一个磁盘场景，查看 update 如何避免误覆盖用户修改。</p>
       <div class="diagram css-tabs">
-        <div class="diagram-head"><span class="diagram-title">Diagram 05 · analyzeChanges 决策</span><p>账本是“上次 Trellis 写入内容”的 base。</p></div>
+        <div class="diagram-head"><span class="diagram-title">图 05 · analyzeChanges 决策</span><p>账本是“上次 Trellis 写入内容”的 base（基线）。</p></div>
         <input class="control-input" type="radio" name="hash" id="hash-same" checked>
         <input class="control-input" type="radio" name="hash" id="hash-upstream">
         <input class="control-input" type="radio" name="hash" id="hash-user">
@@ -521,7 +521,7 @@
       <h2>packages/core：可复用 TypeScript SDK</h2>
       <p class="section-intro">它和项目内 Python runtime 有交集，但不是同一个层次。展开查看三个公开子包。</p>
       <div class="orbit core-orbit">
-        <details open><summary><span class="badge">CHANNEL</span><strong>事件驱动协作</strong></summary><p><code>events.jsonl</code> 是真相源，提供 channel、thread、worker、watch、interrupt API。</p></details>
+        <details open><summary><span class="badge">通道</span><strong>事件驱动协作</strong></summary><p><code>events.jsonl</code> 是真相源，提供 channel（通道）、thread（线程）、worker（工作者）、watch（监听）、interrupt（中断）API（应用程序接口）。</p></details>
         <details><summary><span class="badge">TASK</span><strong>Task 共享契约</strong></summary><p>定义 canonical task record、目录校验、读写与 phase 推导，镜像 Python task.json。</p></details>
         <details><summary><span class="badge">MEM</span><strong>本地会话检索</strong></summary><p>读取 Claude、Codex 等本地会话，提供 list、search、context 与 dialogue extract。</p></details>
       </div>

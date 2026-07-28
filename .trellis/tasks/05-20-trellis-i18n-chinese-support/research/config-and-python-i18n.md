@@ -1,12 +1,12 @@
-# Research: `.trellis/config.yaml` 加载链路与 Python i18n 模块设计 (PR1)
+# 研究：`.trellis/config.yaml` 加载链路与 Python i18n（国际化）模块设计（PR1）
 
-- **Query**: 调研 TS 与 Python 两端如何读 `.trellis/config.yaml`，以决定 `language` 字段加在哪、谁读、如何与 CLI flag 合并；并给出 Python `scripts/common/i18n.py` 模块设计草案。
-- **Scope**: 内部代码（不查外部库）
-- **Date**: 2026-05-20
+- **调研问题**：调研 TS（TypeScript）与 Python 两端如何读 `.trellis/config.yaml`，以决定 `language` 字段加在哪、谁读、如何与 CLI（命令行工具）flag 合并；并给出 Python `scripts/common/i18n.py` 模块设计草案。
+- **范围**：内部代码（不查外部库）
+- **日期**：2026-05-20
 
 ---
 
-## 1. TS 端 config 加载链路与 schema 位置
+## 1. TS 端 config 加载链路与 schema（结构定义）位置
 
 ### 关键发现：TS 端目前 **没有完整的 config schema 定义/类型**，全是按需「正则解析单一节」
 
@@ -51,7 +51,7 @@
 
 差异原因（见 `trellis_config.py` 模块 docstring）：hooks（`shared-hooks/*.py`）需要在没有完整 task helper 上下文时安全读取 config，所以 `trellis_config.py` 是 `config.py` 解析器的「无依赖镜像」。两者都用同一套 `parse_simple_yaml` + `_strip_inline_comment` + `_unquote` 解析链（spec 文件 `script-conventions.md:1170-1326` 把这点称作「load-bearing chain」并明令禁止任何自写 reader）。
 
-### 两端是否共享 schema？
+### 两端是否共享 schema（结构定义）？
 
 **不共享**。
 
@@ -227,7 +227,7 @@ def _ensure_loaded(locale: str) -> None:
     _loaded_strings[locale] = dict(STRINGS)
 ```
 
-### 5.2 字典存放位置 —— 推荐独立子模块（不内联）
+### 5.2 字典存放位置——推荐独立子模块（不内联）
 
 ```
 packages/cli/src/templates/trellis/scripts/common/
@@ -248,7 +248,7 @@ packages/cli/src/templates/trellis/scripts/common/
 
 `i18n.py` 也必须在 `templates/trellis/index.ts:30-62` 注册 `commonI18n`（仿 `commonConfig`），同时在 `getAllScripts()` `:79-115` map 加入 `common/i18n.py`、`common/i18n_strings/__init__.py`、`common/i18n_strings/en.py`、`common/i18n_strings/zh.py`。
 
-### 5.3 调用方迁移示例（`init_developer.py` 试点 — PR1 R4）
+### 5.3 调用方迁移示例（`init_developer.py` 试点——PR1 R4）
 
 ```python
 # init_developer.py:25-47
@@ -323,7 +323,7 @@ key 命名约定：`<file_stem>.<short_action>`。技术名词（路径、命令
 - `migrations/manifests/0.5.11.json:8-14` — 最近一次新增 config 节的 manifest 样本
 - `.trellis/spec/cli/backend/script-conventions.md:1170-1326` — config 字段新增的硬约束（必须走 `_load_config`、必须有 typed accessor、必须有注释样例、必须有 inline-comment 测试 fixture）
 
-## 8. Caveats / Not Found
+## 8. 注意事项 / 未发现项
 
 - 代码里没看到现成的 `--language` CLI flag，确认 PR1 是首次引入（与 PRD 一致）。
 - 没找到 TS 端的中央 `TrellisConfig` interface — 如果未来要做 schema 校验，会是另一个 PR；本次 PR1 不必涉及。

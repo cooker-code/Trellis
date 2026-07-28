@@ -1,10 +1,10 @@
-# Research: `.template-hashes.json` 机制及 i18n 适配建议
+# 研究：`.template-hashes.json` 机制及 i18n（国际化）适配建议
 
-- **Query**: i18n PR1 引入 `*.zh.md` 后，`.template-hashes.json` 是否需要适配
-- **Scope**: internal
-- **Date**: 2026-05-20
+- **调研问题**：i18n PR1 引入 `*.zh.md` 后，`.template-hashes.json` 是否需要适配
+- **范围**：internal（内部代码）
+- **日期**：2026-05-20
 
-## 1. 文件 Schema 与真实条目
+## 1. 文件 Schema（结构定义）与真实条目
 
 文件路径：`.trellis/.template-hashes.json`（即 `path.join(cwd, DIR_NAMES.WORKFLOW, ".template-hashes.json")`，见 `packages/cli/src/utils/template-hash.ts:51`）。
 
@@ -39,7 +39,7 @@ Schema 版本 v2（`HASHES_SCHEMA_VERSION = 2`）：
 
 写入 API 集中在 `template-hash.ts`：`saveHashes / updateHashes / updateHashFromFile / removeHash / renameHash / initializeHashes`。
 
-## 3. "用户手改"判定算法
+## 3. “用户手改”判定算法
 
 核心在 `commands/update.ts:697-762 (analyzeChanges)`：
 
@@ -97,7 +97,7 @@ PRD 决策：模板源新增 `workflow.zh.md`，sync 时按 `language` 选源，
 - 再次 `trellis update`（CLI 升级）应识别"未手改"并自动更新（不进 `changedFiles`）。
 - 删除 `workflow.zh.md` 后 `language=zh` 跑 sync 应无声回落英文，且 hash 更新为英文 hash。
 
-## Caveats / Not Found
+## 注意事项 / 未发现项
 
 - 未发现现有 `sync` 命令；当前模板写入分散在 `init` / `update` 两条路径。PR1 需要决定：i18n 选源逻辑落在 `collectTemplateFiles`（被 update 调用）还是新建独立 `sync` 命令。两条路径都需要套上同一选源 helper。
 - 未读到 `commands/uninstall.ts` 全文，但 `manifest-prune.ts:18-21` 注释明确 uninstall 用 manifest 决定 unlink 列表——i18n 透明落地路径意味着 uninstall 行为不变。

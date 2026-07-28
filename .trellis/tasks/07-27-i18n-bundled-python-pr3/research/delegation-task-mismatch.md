@@ -1,20 +1,20 @@
-# Delegation task mismatch
+# 委派任务不匹配
 
-## Resolved active task
+## 已解析的活动任务
 
-`python3 ./.trellis/scripts/task.py current --source` returned:
+`python3 ./.trellis/scripts/task.py current --source` 返回：
 
-- Task: `.trellis/tasks/07-27-i18n-bundled-python-pr3`
-- Source: `session:claude_f7ca65de-dbf9-4d8c-83f7-5b0c1c6efca4`
+- Task（任务）：`.trellis/tasks/07-27-i18n-bundled-python-pr3`
+- Source（来源）：`session:claude_f7ca65de-dbf9-4d8c-83f7-5b0c1c6efca4`
 
-## Delegated target
+## 被委派的目标
 
-The delegation prompt names `.trellis/tasks/07-27-i18n-common-skills-pr2` as the active task and asks for PR2 planning artifacts.
+委派提示将 `.trellis/tasks/07-27-i18n-common-skills-pr2` 标为活动任务，并要求生成 PR2 的规划产物。
 
-## Blocking constraints
+## 阻塞约束
 
-The Research Agent contract requires resolving the active task through `task.py current --source`, persisting findings only under that task's `research/` directory, and not editing task planning files outside research artifacts. Therefore this agent cannot safely write PR2's `prd.md`, `design.md`, `implement.md`, `implement.jsonl`, or `check.jsonl` while the resolved active task is PR3.
+Research Agent（调研代理）契约要求通过 `task.py current --source` 解析活动任务，只能在该任务的 `research/` 目录保存结论，且不得编辑调研产物以外的 task 规划文件。因此，在解析出的活动任务仍为 PR3 时，本代理不能安全写入 PR2 的 `prd.md`、`design.md`、`implement.md`、`implement.jsonl` 或 `check.jsonl`。
 
-## Required caller action
+## 调用方所需操作
 
-Re-dispatch with the session active-task pointer set to `.trellis/tasks/07-27-i18n-common-skills-pr2`, or delegate the planning-file edits to a planning agent whose write scope includes task artifacts. Do not start the PR2 task.
+请在活动任务指针设为 `.trellis/tasks/07-27-i18n-common-skills-pr2` 后重新委派，或将规划文件编辑委派给具有 task 产物写入范围的规划代理。不要启动 PR2 任务。

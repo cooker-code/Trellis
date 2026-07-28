@@ -12,7 +12,7 @@
 
 ## Goal
 
-Complete the third Chinese-localization content slice by shipping Chinese sources for built-in multi-file skills and blank spec templates, migrating the remaining core Python CLI messages onto the existing dictionary-based i18n framework, and documenting the shipped/deferred localization coverage for the current Beta track.
+完成第三阶段中文本地化内容：为内置多文件技能和空白 spec（规范）模板提供中文源，将剩余核心 Python CLI（命令行工具）文案迁移到既有字典式 i18n（国际化）框架，并在当前 Release（发布版）文档中说明已交付与延后范围。
 
 Users selecting `zh` should receive Chinese human/LLM-facing content at the same unsuffixed destination paths, while English remains the default and missing translations fall back safely to English.
 
@@ -86,12 +86,12 @@ Users selecting `zh` should receive Chinese human/LLM-facing content at the same
 - Compare Python English/Chinese key sets and per-key format placeholders.
 - Add structural tests for destination-path parity, frontmatter identity fields, placeholders, link targets, code fences/protected tokens, and missing-translation fallback.
 
-### R6. Beta documentation and roadmap
+### R6. Release documentation and roadmap
 
-- Add mirrored EN/ZH Beta localization pages and routes.
+- 在既有 EN/ZH Release Advanced 导航新增镜像 localization 页面和路由。
 - Document configuration/flag priority, init/update materialization, fallback, unsuffixed destinations, hash behavior, spec ownership, Python protocol exceptions, translation policy, and coverage roadmap.
-- Update mirrored Beta configuration and roadmap pages; audit the Beta FAQ for stale partial-support wording.
-- Do not update Release-track pages/routes before GA.
+- 更新镜像的 Release configuration、roadmap 和 FAQ，移除已过时的部分支持表述。
+- 不新建 Beta version，也不复制 Use Cases、Marketplace（市场）或 Community（社区）共享导航分组。
 
 ## Acceptance criteria
 
@@ -107,7 +107,7 @@ Users selecting `zh` should receive Chinese human/LLM-facing content at the same
 - [ ] Python `zh -> en -> key` fallback, dictionary key parity, and placeholder parity are tested.
 - [ ] `task.py current --source`, raw path stdout, JSON schemas, exit codes, and stdout/stderr channels remain stable under both locales.
 - [ ] `pnpm run i18n:check` covers Markdown, compound spec sources, and Python dictionary drift.
-- [ ] EN/ZH Beta localization routes exist in matching navigation order; no Release route is added.
+- [ ] EN/ZH Release localization routes 的导航顺序一致；没有新建 Beta version 或共享分组副本。
 - [ ] CLI lint, typecheck, Python lint, tests, i18n check, build, and docs lint/format checks pass.
 
 ## Out of scope
@@ -279,7 +279,7 @@ Normal mode warns and exits 0. `--strict` exits non-zero on missing source, stal
 
 ## 8. Documentation architecture
 
-Add a bilingual Beta-only `advanced/localization` page and mirrored navigation entries. Update Beta configuration/roadmap/FAQ claims. Release docs remain frozen until GA.
+在既有 Release Advanced 导航中新增双语 `advanced/localization` 页面和镜像路由，并更新 Release configuration、roadmap、FAQ 的表述。当前 docs-site 不建立 Beta version。
 
 The localization page is the coverage source of truth and explicitly distinguishes:
 
@@ -316,7 +316,7 @@ The localization page is the coverage source of truth and explicitly distinguish
 | Spec translation overwrites user content | Keep update exclusion; document init-only blank specs |
 | Python output breaks consumers | Protocol allowlist + subprocess channel/exit/schema tests |
 | Translation drifts | Pair/key/placeholder drift checks |
-| Beta docs leak into Release | Opposite-tree grep + mirrored Beta-only route test |
+| 新建 Beta 导航导致共享组漂移 | 确认仅新增镜像 Release 路由，且没有 Beta version 或共享组复制 |
 
 ---
 
@@ -398,14 +398,14 @@ Review gate: compare English command output before/after for behavior and channe
 - [ ] Preserve warning-only default and strict failure behavior.
 - [ ] Add checker tests for missing counterpart, stale source, key mismatch, placeholder mismatch, and clean state.
 
-## 7. Update Beta documentation
+## 7. Update Release documentation
 
-- [ ] Add mirrored `beta/advanced/localization.mdx` pages.
-- [ ] Add mirrored EN/ZH Beta routes in `docs.json` in identical order.
-- [ ] Update mirrored Beta configuration pages with `language`.
-- [ ] Update mirrored Beta roadmap pages from future promise to phased coverage.
-- [ ] Audit mirrored Beta FAQ localization wording.
-- [ ] Run opposite-tree grep to prove Release docs/routes did not receive Beta behavior.
+- [ ] Add mirrored `advanced/localization.mdx` pages.
+- [ ] Add mirrored EN/ZH Release routes in `docs.json` in identical order.
+- [ ] Update mirrored Release configuration pages with `language`.
+- [ ] Update mirrored Release roadmap pages from future promise to phased coverage.
+- [ ] Audit mirrored Release FAQ localization wording.
+- [ ] Confirm no Beta version or Release shared-group copy was introduced.
 - [ ] Run docs format and lint checks.
 
 Submodule gate: commit docs-site changes inside the submodule before updating the root pointer during the later commit phase.
@@ -449,14 +449,14 @@ pnpm lint
 {"file":".trellis/spec/cli/unit-test/conventions.md","reason":"Dynamic inventories, meaningful assertions, and regression-test conventions."}
 {"file":".trellis/spec/cli/unit-test/integration-patterns.md","reason":"Init/update filesystem integration-test patterns."}
 {"file":".trellis/spec/docs-site/docs/index.md","reason":"Docs package entry checklist."}
-{"file":".trellis/spec/docs-site/docs/sync-on-change.md","reason":"Beta/Release routing and bilingual docs synchronization contract."}
+{"file":".trellis/spec/docs-site/docs/sync-on-change.md","reason":"Release routing decision and bilingual docs synchronization contract."}
 {"file":".trellis/spec/docs-site/docs/config-guidelines.md","reason":"Mintlify bilingual route and docs.json requirements."}
 {"file":".trellis/spec/docs-site/docs/mdx-guidelines.md","reason":"MDX structure and validation constraints."}
 {"file":".trellis/spec/docs-site/docs/style-guide.md","reason":"Technical docs voice and source-of-truth discipline."}
 {"file":".trellis/spec/guides/index.md","reason":"Shared cross-layer and code-reuse thinking triggers."}
 {"file":".trellis/tasks/07-27-i18n-bundled-python-pr3/research/bundled-and-spec-template-loading.md","reason":"Recursive loader, source inventory, locale overlay, and spec-template findings."}
 {"file":".trellis/tasks/07-27-i18n-bundled-python-pr3/research/python-i18n-surface.md","reason":"Python message scope, protocol allowlist, and subprocess test requirements."}
-{"file":".trellis/tasks/07-27-i18n-bundled-python-pr3/research/docs-routes-and-test-plan.md","reason":"Beta docs routes, stale claims, test matrix, and validation commands."}
+{"file":".trellis/tasks/07-27-i18n-bundled-python-pr3/research/docs-routes-and-test-plan.md","reason":"Release docs routes, stale claims, test matrix, and validation commands."}
 ```
 
 ---
@@ -469,7 +469,7 @@ pnpm lint
 {"file":".trellis/spec/cli/unit-test/index.md","reason":"Verify required checks and test layers."}
 {"file":".trellis/spec/cli/unit-test/conventions.md","reason":"Verify tests are dynamic, non-tautological, and behavior-focused."}
 {"file":".trellis/spec/cli/unit-test/integration-patterns.md","reason":"Verify init/update integration coverage and real filesystem behavior."}
-{"file":".trellis/spec/docs-site/docs/sync-on-change.md","reason":"Verify Beta-only and mirrored EN/ZH docs changes."}
+{"file":".trellis/spec/docs-site/docs/sync-on-change.md","reason":"Verify mirrored EN/ZH Release docs changes."}
 {"file":".trellis/spec/docs-site/docs/config-guidelines.md","reason":"Verify docs.json language routes and navigation parity."}
 {"file":".trellis/spec/docs-site/docs/mdx-guidelines.md","reason":"Verify MDX syntax and frontmatter."}
 {"file":".trellis/spec/docs-site/docs/style-guide.md","reason":"Verify technical documentation accuracy and scope."}

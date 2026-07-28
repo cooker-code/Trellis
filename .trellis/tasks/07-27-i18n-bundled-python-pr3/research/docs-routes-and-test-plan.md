@@ -6,25 +6,23 @@
 
 ## Docs-site version scope
 
-The current CLI is on the `0.6.0-beta` track. Per `.trellis/spec/docs-site/docs/sync-on-change.md`, new localization documentation belongs only in:
+The checked-out docs-site has only Release navigation; it has no Beta version or `beta/**` tree. The confirmed low-intrusion decision is to add localization to the existing mirrored Release Advanced routes:
 
-- `docs-site/beta/**`
-- `docs-site/zh/beta/**`
+- `docs-site/advanced/**`
+- `docs-site/zh/advanced/**`
 
-Do not modify root Release pages (`advanced/**`, `zh/advanced/**`) until GA promotion.
-
-`docs-site/docs.json` has separate EN Beta and ZH Beta Advanced page arrays. Any new page requires two route entries.
+Do not create a Beta version and do not copy the Release Use Cases, Marketplace, or Community shared groups. `docs-site/docs.json` must retain matching EN/ZH Release Advanced order.
 
 ## Recommended documentation deliverables
 
-### New bilingual Beta localization page
+### New bilingual Release localization page
 
 Add:
 
-- `docs-site/beta/advanced/localization.mdx`
-- `docs-site/zh/beta/advanced/localization.mdx`
+- `docs-site/advanced/localization.mdx`
+- `docs-site/zh/advanced/localization.mdx`
 
-Add each immediately after its Beta configuration page in `docs-site/docs.json` (or immediately after roadmap if maintainers prefer discovery-first ordering; use the same order in both languages).
+Add each immediately after its existing Release configuration page in `docs-site/docs.json`, using the same order in both languages.
 
 The page should document:
 
@@ -40,21 +38,19 @@ The page should document:
 10. A coverage roadmap table showing completed PR1-B, PR2, PR3 and deferred TypeScript CLI/platform-specific content.
 11. Translation policy: preserve proper names and technical identifiers.
 
-### Update existing Beta pages
+### Update existing Release pages
 
-- `docs-site/beta/advanced/configuration.mdx`
-- `docs-site/zh/beta/advanced/configuration.mdx`
+- `docs-site/advanced/configuration.mdx`
+- `docs-site/zh/advanced/configuration.mdx`
 
 Both currently omit the already-shipped `language` key. Add the key/default/accepted values, materialization behavior, fallback, and a link to the localization page.
 
-- `docs-site/beta/advanced/roadmap.mdx`
-- `docs-site/zh/beta/advanced/roadmap.mdx`
+- `docs-site/advanced/roadmap.mdx`
+- `docs-site/zh/advanced/roadmap.mdx`
 
 Both still list Chinese localization as a future v0.7 item. Replace that claim with current phased status and link to the localization page, while keeping CLI TypeScript output clearly deferred.
 
-- Audit `docs-site/beta/advanced/appendix-f.mdx` and its Chinese mirror. The current FAQ says built-in localization is “partially shipped and on the roadmap”; update only if PR3 makes that wording stale.
-
-Do not copy these updates to Release pages in this beta-only PR.
+- Audit `docs-site/advanced/appendix-f.mdx` and its Chinese mirror. The current FAQ says built-in localization is “partially shipped and on the roadmap”; update it for PR3.
 
 ## Documentation style constraints
 
@@ -102,7 +98,7 @@ Do not copy these updates to Release pages in this beta-only PR.
 | 12 | Python representative commands | Chinese prose with unchanged exit code/stdout/stderr behavior |
 | 13 | Python protocols | `task.py current --source`, raw path outputs, and JSON keys stay stable |
 | 14 | Drift checker | Compound `*.zh.md.txt`, missing source, stale source, key mismatch, placeholder mismatch |
-| 15 | Docs navigation | EN/ZH Beta routes exist in matching order; no Release route added |
+| 15 | Docs navigation | EN/ZH Release routes exist in matching order; no Beta version or shared-group copy is added |
 
 ## Validation commands
 
@@ -124,7 +120,7 @@ pnpm format:check
 pnpm lint
 ```
 
-Also run the opposite-tree grep required by docs sync policy to prove beta-only localization content did not leak into Release routes/pages.
+Confirm the checked-out docs-site still has no Beta version and that only mirrored Release Advanced routes were added.
 
 ## GitNexus and pre-commit gate
 

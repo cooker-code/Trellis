@@ -1,16 +1,16 @@
-# Research: Trellis 仓库架构与实现机制（初学者指南）
+# 研究：Trellis 仓库架构与实现机制（初学者指南）
 
-- **Query**: Map the Trellis repository architecture and explain its implementation mechanism for a beginner.
-- **Scope**: internal repository research
-- **Date**: 2026-07-27
-- **Revision inspected**: `d68f65c2`（工作区原先已有未提交改动；本文描述当前可见源码，不把这些改动归因于本次研究）
+- **调研问题**：梳理 Trellis 仓库架构，并向初学者说明其实现机制。
+- **范围**：内部仓库研究
+- **日期**：2026-07-27
+- **检查的 revision（修订版本）**：`d68f65c2`（工作区原先已有未提交改动；本文描述当前可见源码，不把这些改动归因于本次研究）
 
 ## 1. 先建立一个 30 秒心智模型
 
 Trellis 不是一个常驻服务。它主要由两部分组成：
 
-1. **安装器 / 同步器（TypeScript CLI）**：npm 包 `@mindfoldhq/trellis` 读取仓库内模板，把 `.trellis/` 和各 AI 平台适配文件生成到用户项目中；以后用 `trellis update` 做安全同步。
-2. **项目内运行时（生成后的 Python / JS / 平台配置）**：AI 会话开始或每轮提问时，平台 hook/plugin 读取 `.trellis/workflow.md`、当前 task、spec 和 journal，把正确上下文送给 AI。任务状态和知识都保存在文件中，不依赖聊天记忆。
+1. **安装器 / 同步器（TypeScript CLI，命令行工具）**：npm 包 `@mindfoldhq/trellis` 读取仓库内模板，把 `.trellis/` 和各 AI（人工智能）平台适配文件生成到用户项目中；以后用 `trellis update` 做安全同步。
+2. **项目内运行时（生成后的 Python / JS / 平台配置）**：AI 会话开始或每轮提问时，平台 hook（钩子）/plugin（插件）读取 `.trellis/workflow.md`、当前 task（任务）、spec（规范）和 journal（日志），把正确上下文送给 AI。任务状态和知识都保存在文件中，不依赖聊天记忆。
 
 可以把它理解为：
 
@@ -26,7 +26,7 @@ AI 每轮获得：当前任务 + 当前阶段 + 相关规范 + 历史背景
 
 最重要的边界：**维护 Trellis 本身时改 `packages/cli/src/templates/`；使用 Trellis 的普通项目通常改生成后的 `.trellis/` 和平台目录。**
 
-## 2. Monorepo 顶层结构
+## 2. Monorepo（单仓库多包）顶层结构
 
 根目录由 `pnpm-workspace.yaml` 管理，只把 `packages/*` 纳入 pnpm workspace。当前有两个发布包：
 
@@ -40,7 +40,7 @@ AI 每轮获得：当前任务 + 当前阶段 + 相关规范 + 历史背景
 
 构建顺序在根 `package.json`：先 build `@mindfoldhq/trellis-core`，再 build CLI。CLI 对 core 使用 `workspace:*` 依赖。CLI 的 TypeScript 编译后，`packages/cli/scripts/copy-templates.js` 再把非 `.ts` 模板和 migration manifests 复制到 `dist/`；npm bin `packages/cli/bin/trellis.js` 最终加载 `dist/cli/index.js`。
 
-## 3. CLI init / update 主流水线
+## 3. CLI（命令行工具）init / update 主流水线
 
 ### 3.1 CLI 入口
 

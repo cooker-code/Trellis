@@ -1,8 +1,8 @@
 {
   "id": "trellis-i18n-chinese-support",
   "name": "trellis-i18n-chinese-support",
-  "title": "trellis-i18n-chinese-support",
-  "description": "",
+  "title": "Trellis i18n 中文支持",
+  "description": "为 Trellis 工作流、Agent、Skill、Command、规范模板、Python 文案和 task 内容提供中文支持。",
   "status": "in_progress",
   "dev_type": null,
   "scope": null,

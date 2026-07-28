@@ -1,6 +1,6 @@
-# Sync / Init 调用链路与 i18n 介入点
+# Sync（同步）/Init（初始化）调用链路与 i18n（国际化）介入点
 
-> 调研时间：2026-05-20。来源：trellis-research sub-agent（agent a8189bfb）。
+> 调研时间：2026-05-20。来源：trellis-research sub-agent（子代理；agent a8189bfb）。
 > 本文档是该次调研的内容存档，主线 implement 实施时可作单点参考。
 
 ## 1. 入口与命令
@@ -17,7 +17,7 @@
 
 ## 2. 调用链总览
 
-### Init 路径
+### Init（初始化）路径
 
 ```
 cli/index.ts:62 (program.command "init")
@@ -36,7 +36,7 @@ cli/index.ts:62 (program.command "init")
     → init.ts:1806 initializeHashes(cwd, {trackedPaths: writtenPaths})
 ```
 
-### Update 路径
+### Update（更新）路径
 
 ```
 cli/index.ts:115 (program.command "update")
@@ -83,23 +83,23 @@ cli/index.ts:115 (program.command "update")
 
 ## 5. 介入点候选（带优劣）
 
-### 候选 A：源端聚合层（`templates/trellis/index.ts` + `templates/common/index.ts`）— **推荐**
+### 候选 A：源端聚合层（`templates/trellis/index.ts` + `templates/common/index.ts`）——**推荐**
 在 `getAllScripts()`、`workflowMdTemplate` 取值、`getCommandTemplates`/`getSkillTemplates` 内统一加 `pickByLocale(file)` 工具：优先 `*.zh.md`，缺则 `*.md`，**返回 key 始终是脱后缀名**。
 - ✅ 调用方零改动：`workflow.ts:97`、`update.ts:646`、`PLATFORM_FUNCTIONS.collectTemplates`、`writeSkills/writeAgents` 全自动获益
 - ✅ Hash 跟踪天然透明：键名一直是英文路径
 - ✅ `extract.ts copyDirRecursive`（scripts 路径）需要单独打补丁——把"复制时如果同目录有 `*.zh.<ext>` 就用它，但落地名脱后缀"作为同一套规则
 - ⚠️ 需引入"locale 解析"模块（读 `.trellis/config.yaml.language`）——必须在两个命令的入口尽早调用一次，缓存 module-level（参考 `shared.ts:23 resolvedPythonCommand` 的模式）
 
-### 候选 B：写盘层（`utils/file-writer.ts writeFile`）— ❌ 否决
+### 候选 B：写盘层（`utils/file-writer.ts writeFile`）——❌ 否决
 writeFile 只接受 content 字符串，已无文件名上下文。
 
-### 候选 C：`createTemplateReader` 包一层（`templates/template-utils.ts`）— 折中
+### 候选 C：`createTemplateReader` 包一层（`templates/template-utils.ts`）——折中
 让 reader 自己做语言选择。
 - ✅ 复用面广，平台模板未来要 i18n 时直接受益
 - ❌ 现有 reader API 已四散；PR1 只翻译 workflow.md，改动面过大
 - 折中：**先 A，预留 reader 升级接口给 PR2/PR3**
 
-### 候选 D：CLI 入口注入（必做前置）
+### 候选 D：CLI（命令行工具）入口注入（必做前置）
 `init.ts:1015` / `update.ts:1681` 顶部读 config + flag，决定 locale 后调 `setResolvedLocale("zh")`。仅决定"locale 是什么"，真正的"按 locale 取文件"仍要靠 A。
 
 **最终建议**：A + D 组合。
@@ -173,7 +173,7 @@ export async function writeFile(
 - `packages/cli/src/templates/extract.ts` (copyTrellisDir)
 - `packages/cli/src/utils/file-writer.ts` (writeFile)
 
-## 9. Caveats（PR1 实施必读）
+## 9. 注意事项（PR1 实施必读）
 
 - `getAllScripts()` 是手写枚举的 Map，新增 `*.zh.py` 必须**同步在 index.ts 里 `readTemplate` 一份**——不会自动收。
 - `workflowMdTemplate` 是顶层 `const`，**模块加载即固定**；PR1 必须把它改成 lazy/函数化（如 `getWorkflowTemplate(locale)`），并更新所有四个引用点（`init.ts:43-44`、`update.ts:43`、`workflow.ts:9-11`、`update.ts:646`）。

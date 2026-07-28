@@ -1,96 +1,90 @@
-# Research: PR1-B init/update and runtime integration tests
+# 调研：PR1-B init/update（初始化/更新）与运行时集成测试
 
-- **Query**: Identify complete integration coverage for a full Chinese `workflow.md` without regressing English or hash ownership.
-- **Scope**: internal
-- **Date**: 2026-07-27
+- **查询**：识别完整中文 `workflow.md` 所需的集成覆盖，同时不回归英文或 hash（哈希）所有权。
+- **范围**：内部。
+- **日期**：2026-07-27
 
-## Existing integration behavior
+## 现有集成行为
 
-### Init
+### init
 
-- Locale selection is already wired through `getWorkflowTemplate(locale)` in `packages/cli/src/templates/trellis/index.ts:92-114`.
-- `createWorkflowStructure` writes the selected source to the fixed landed path `.trellis/workflow.md` (`packages/cli/src/configurators/workflow.ts:95-118`).
-- `packages/cli/test/commands/init.integration.test.ts:126-151` currently verifies only that English starts with `# Development Workflow` and `--language zh` starts with `# 开发工作流`.
-- Init hash tracking records the landed path/content after writes, so the test should assert the Chinese content hash under `.trellis/workflow.md`, never `.trellis/workflow.zh.md`.
+- locale 选择已经通过 `packages/cli/src/templates/trellis/index.ts:92-114` 的 `getWorkflowTemplate(locale)` 接入；
+- `createWorkflowStructure` 将选中源写入固定落地路径 `.trellis/workflow.md`（`packages/cli/src/configurators/workflow.ts:95-118`）；
+- `packages/cli/test/commands/init.integration.test.ts:126-151` 目前只验证英文以 `# Development Workflow` 开头、`--language zh` 以 `# 开发工作流` 开头；
+- init 的 hash 跟踪在写入后记录落地路径/内容，因此测试必须断言中文内容的 hash 位于 `.trellis/workflow.md`，绝不能位于 `.trellis/workflow.zh.md`。
 
-### Update
+### update
 
-- `collectTemplateFiles` resolves locale and inserts selected bytes under `.trellis/workflow.md` (`packages/cli/src/commands/update.ts:650-662`).
-- Whole-file workflow replacement and hash refresh are already covered for English by `packages/cli/test/commands/update.integration.test.ts:1027-1068`.
-- No current update integration test switches an initialized English project to the Chinese template.
-- Same-version update still analyzes template bytes, so an English landed file with a matching stored English hash should be classified as an auto-update when the selected template changes to Chinese.
+- `collectTemplateFiles` 解析 locale，并将选中字节放入 `.trellis/workflow.md`（`packages/cli/src/commands/update.ts:650-662`）；
+- 英文的整文件 workflow 替换及 hash 刷新已在 `packages/cli/test/commands/update.integration.test.ts:1027-1068` 覆盖；
+- 目前没有将已初始化英文项目切换至中文模板的 update 集成测试；
+- 同版本 update 仍会分析模板字节：若英文落地文件与已存英文 hash 匹配，中文模板被选中后应判定为自动更新。
 
-### Runtime
+### 运行时
 
-- `get_context.py --mode phase` delegates to `common/workflow_phase.py`.
-- Existing runtime tests in `packages/cli/test/regression.test.ts:3364-3574` use only the English workflow.
-- Breadcrumb bodies are parser-safe because workflow-state tags are locale-neutral, but compact Phase Index extraction currently requires English headings (see `workflow-runtime-parser-audit.md`).
+- `get_context.py --mode phase` 委派给 `common/workflow_phase.py`；
+- `packages/cli/test/regression.test.ts:3364-3574` 的运行时测试只使用英文 workflow；
+- workflow-state（工作流状态）标签与语言无关，故 breadcrumb（面包屑）正文可保持解析安全；但紧凑 Phase Index（阶段索引）提取目前依赖英文标题，见 `workflow-runtime-parser-audit.md`。
 
-## Required test matrix
+## 必需测试矩阵
 
-### A. Template source and parity (unit)
+### A. 模板源与一致性（单元测试）
 
-1. `getWorkflowTemplate("zh")` returns the complete Chinese source.
-2. The PR1-A placeholder comment is absent.
-3. Late-file Chinese sentinels exist (Phase 2, Phase 3.4, customization section).
-4. English and Chinese structures pass the parity comparator.
-5. Unsupported locale still falls back to exact English bytes.
+1. `getWorkflowTemplate("zh")` 返回完整中文源；
+2. 不含 PR1-A placeholder 注释；
+3. 存在后部中文哨兵内容（Phase 2、Phase 3.4、自定义章节）；
+4. 英文与中文结构通过一致性比较器；
+5. 不支持的 locale 仍回落到精确英文字节。
 
-### B. Init integration
+### B. init 集成
 
-Strengthen the existing `#1c` case or split it into explicit cases:
+将现有 `#1c` 用例加强或拆分：
 
-| Scenario | Call | Assertions |
+| 场景 | 调用 | 断言 |
 |---|---|---|
-| Default English | `init({ yes: true })` | Landed workflow equals `replacePythonCommandLiterals(getWorkflowTemplate("en"))`; English hash is stored. |
-| Chinese override | `init({ yes: true, language: "zh" })` | Landed workflow equals the fully translated source after Python placeholder replacement; no `.zh.md` lands; hash key is `.trellis/workflow.md` and value equals landed Chinese bytes. |
-| Chinese runtime | Run generated `get_context.py --mode phase` and `--mode phase --step 1.1 --platform pi` | Compact Phase Index and Step body are Chinese; Step lookup and platform filtering still work. |
+| 默认英文 | `init({ yes: true })` | 落地 workflow 等于 `replacePythonCommandLiterals(getWorkflowTemplate("en"))`，并存储英文 hash。 |
+| 中文覆盖 | `init({ yes: true, language: "zh" })` | 落地 workflow 等于完整中文源经 Python placeholder 替换后的内容；不落地 `.zh.md`；hash 键为 `.trellis/workflow.md` 且值等于中文落地字节。 |
+| 中文运行时 | 运行生成的 `get_context.py --mode phase` 与 `get_context.py --mode phase --step 1.1 --platform pi` | 紧凑 Phase Index 与 Step 正文为中文；Step 查找和平台过滤仍有效。 |
 
-Use exact source equality rather than `startsWith`, so a translated prefix plus stale English tail cannot pass.
+使用精确源内容相等，而不是 `startsWith`，避免“已翻译前缀 + 过时英文尾部”误通过。
 
-### C. Update integration
+### C. update 集成
 
-Add a named case near `#workflow-md-r4`:
+在 `#workflow-md-r4` 附近增加具名用例：
 
-1. Initialize a default English project.
-2. Edit `.trellis/config.yaml` to activate top-level `language: zh` while preserving it as user-owned config (use `skipAll` or a targeted setup so update does not overwrite the config fixture).
-3. Keep `.trellis/workflow.md` pristine relative to its stored English hash.
-4. Run `update({ skipAll: true })` (or the exact non-interactive option that still allows auto-updates).
-5. Assert:
-   - `.trellis/workflow.md` equals selected Chinese bytes after placeholder rendering;
-   - no `.trellis/workflow.zh.md` exists;
-   - `.template-hashes.json` contains only the locale-agnostic landed key for workflow;
-   - its hash equals Chinese landed bytes;
-   - the user-modified language config is preserved.
-6. Run update again and assert the workflow/hash are unchanged (idempotent locale landing).
+1. 初始化默认英文项目；
+2. 编辑 `.trellis/config.yaml` 启用顶层 `language: zh`，并保持其为用户所有的 config；可使用 `skipAll` 或定向准备以避免 update 覆盖 fixture；
+3. 保持 `.trellis/workflow.md` 相对于已存英文 hash 为 pristine（未修改）；
+4. 执行 `update({ skipAll: true })`，或实际允许自动更新的等效非交互选项；
+5. 断言 `.trellis/workflow.md` 等于 placeholder 渲染后的中文字节；不存在 `.trellis/workflow.zh.md`；`.template-hashes.json` 只有无语言后缀的 workflow 键且 hash 等于中文字节；用户修改过的 language config 保留；
+6. 再运行一次 update，workflow/hash 应保持不变（幂等）。
 
-A one-shot `update({ language: "zh" })` variant is useful but must restore `TRELLIS_LANGUAGE` in `afterEach`; `update()` currently realizes the flag through process environment and tests must not leak it into later cases.
+`update({ language: "zh" })` 的一次性变体也有价值，但其通过进程环境实现，测试必须在 `afterEach` 恢复 `TRELLIS_LANGUAGE`。
 
-### D. Parser integration
+### D. 解析器集成
 
-If Phase headings are translated, add direct Chinese cases for every changed parser family:
+若 Phase 标题中文化，则为每类改变后的解析器增加直接中文用例：
 
-| Parser family | Test behavior |
+| 解析器族 | 测试行为 |
 |---|---|
-| Bundled Python `workflow_phase.py` | Chinese Phase Index extracted; workflow-state blocks stripped; detailed Phase 1 excluded; `get_step("1.1")` returns Chinese body. |
-| Shared Python SessionStart | `<trellis-workflow>` contains Chinese compact index, excludes detailed Step bodies and complete workflow-state blocks. |
-| Codex/Copilot standalone SessionStart copies | At minimum exercise their Phase Index helper with Chinese source, or assert shared fixture behavior if a test harness already runs each copy. |
-| OpenCode `session-utils.js` | Chinese compact index appears in generated SessionStart context. |
-| Breadcrumb Python/JS parsers | Existing tests remain sufficient for syntax; add one assertion that a Chinese tag body is emitted verbatim. |
+| bundled Python `workflow_phase.py` | 提取中文 Phase Index；移除 workflow-state 块；排除详细 Phase 1；`get_step("1.1")` 返回中文正文。 |
+| 共享 Python SessionStart | `<trellis-workflow>` 包含中文紧凑索引，排除详细 Step 正文及完整 workflow-state 块。 |
+| Codex/Copilot 独立 SessionStart 副本 | 至少使用中文源覆盖其 Phase Index helper；若现有 harness 已逐副本运行，可断言共享 fixture 行为。 |
+| OpenCode `session-utils.js` | 生成的 SessionStart 上下文含中文紧凑索引。 |
+| breadcrumb Python/JS 解析器 | 现有语法测试可保留；新增一条断言证明中文标签正文原样发出。 |
 
-## Negative and compatibility assertions
+## 负向与兼容性断言
 
-- English default bytes remain unchanged.
-- English parser cases remain green.
-- Missing/malformed Phase Index anchor still returns the existing fallback/empty result.
-- Platform marker filtering does not leak the alternate Codex block.
-- Workflow-state opening and closing STATUS values remain matched.
-- Update never creates a locale-suffixed landed path or hash key.
-- User-modified workflow conflict behavior is unchanged; PR1-B should not bypass hash protection merely to switch language.
+- 默认英文字节不变，既有英文解析器用例继续通过；
+- 缺失/畸形 Phase Index 锚点维持当前回落/空输出；
+- 平台 marker 过滤不泄漏替代 Codex 块；
+- workflow-state 开闭 STATUS 值仍配对；
+- update 不产生带 locale 后缀的落地路径或 hash 键；
+- 用户修改过的 workflow 冲突行为不变；PR1-B 不得为了切换语言绕过 hash 保护。
 
-## Validation commands
+## 验证命令
 
-From `packages/cli/`:
+在 `packages/cli/` 运行：
 
 ```bash
 pnpm vitest run test/scripts/check-i18n-drift.test.ts
@@ -105,12 +99,12 @@ pnpm typecheck
 pnpm test
 ```
 
-Run the checker in normal warning mode during development. Use `node scripts/check-i18n-drift.js --strict` only after understanding the Git-recency result, because uncommitted translation bytes do not update `git log` timestamps.
+开发期间以普通警告模式运行检查器。仅在理解 Git 时间新旧结果后再运行 `node scripts/check-i18n-drift.js --strict`，因为未提交的翻译字节不会更新 `git log` 时间戳。
 
-## Related specs
+## 相关规范
 
-- `.trellis/spec/cli/backend/workflow-state-contract.md` — parser/tag/update contract.
-- `.trellis/spec/cli/backend/commands-update.md` — whole-file update, hashes, idempotency, integration test conventions.
-- `.trellis/spec/cli/backend/script-conventions.md` — distributed Python compatibility.
-- `.trellis/spec/cli/unit-test/conventions.md` — exact assertions, env isolation, non-tautological fixtures.
-- `.trellis/spec/cli/unit-test/integration-patterns.md` — real temp-directory init/update pattern.
+- `.trellis/spec/cli/backend/workflow-state-contract.md`：解析器/标签/update 契约；
+- `.trellis/spec/cli/backend/commands-update.md`：整文件更新、hash、幂等性和集成测试约定；
+- `.trellis/spec/cli/backend/script-conventions.md`：分发 Python 兼容性；
+- `.trellis/spec/cli/unit-test/conventions.md`：精确断言、环境隔离与非自证 fixture；
+- `.trellis/spec/cli/unit-test/integration-patterns.md`：真实临时目录 init/update 模式。

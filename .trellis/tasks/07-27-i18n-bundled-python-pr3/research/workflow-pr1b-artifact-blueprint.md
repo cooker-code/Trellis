@@ -1,362 +1,72 @@
-# Research: Complete PR1-B planning artifact blueprint
+# 调研：完整 PR1-B 规划产物蓝图
 
-- **Query**: Draft complete `prd.md`, `design.md`, `implement.md`, `implement.jsonl`, and `check.jsonl` for `.trellis/tasks/07-27-i18n-workflow-pr1b` without editing that task.
-- **Scope**: internal planning
-- **Date**: 2026-07-27
+- **查询**：为 `.trellis/tasks/07-27-i18n-workflow-pr1b` 起草完整的 `prd.md`、`design.md`、`implement.md`、`implement.jsonl` 和 `check.jsonl`，但不编辑该任务。
+- **范围**：内部规划。
+- **日期**：2026-07-27
 
-## Critical task-resolution caveat
+## 关键任务解析限制
 
-`python3 ./.trellis/scripts/task.py current --source` resolved:
+`python3 ./.trellis/scripts/task.py current --source` 当时解析为：
 
 ```text
 Current task: .trellis/tasks/07-27-i18n-bundled-python-pr3
 Source: session:claude_f7ca65de-dbf9-4d8c-83f7-5b0c1c6efca4
 ```
 
-The delegated target is `.trellis/tasks/07-27-i18n-workflow-pr1b`, but the Research Agent contract permits writes only under the **resolved current task’s** `research/` directory. Therefore the requested target-task files were not modified. The caller should resolve/switch the session pointer deliberately, then copy/adapt the following blueprint into the PR1-B task. Do not run `task.py start` during that planning handoff.
+委派目标为 `.trellis/tasks/07-27-i18n-workflow-pr1b`，但 Research Agent（调研代理）契约只允许写入**已解析当前任务**的 `research/` 目录。因此目标任务文件没有修改。调用方应有意识地解析/切换会话指针，再将本蓝图复制或调整到 PR1-B 任务；该规划交接期间不得运行 `task.py start`。
 
----
+## 建议 `prd.md`
 
-## Proposed `prd.md`
+标题应为 `# i18n PR1-B：完整中文 workflow`。目标：将 PR1-A 示例 `workflow.zh.md` 替换为当前内置原生 workflow 的完整中文翻译，保持每一项机器消费契约，并证明中文 init/update/运行时路径与英文等价。
 
-```markdown
-# i18n PR1-B: complete Chinese workflow
+需求应覆盖：
 
-## Goal
+- 翻译 `packages/cli/src/templates/trellis/workflow.zh.md` 中所有面向人和 LLM 的标题、正文、表格、prompt 示例、代码块注释及 HTML/Markdown 注释；以当前 `workflow.md` 为唯一语义来源，删除 PR1-A placeholder 和过时英文正文；
+- 原样保留命令、参数、slash command、路径、文件名、环境变量、JSON/YAML 键、代码标识、状态值、精确运行时字面量、Phase/Step 数字、`[required · once]` 等限定符、workflow-state 开闭标签、平台 marker、placeholder、代码围栏语言和链接目标；英文源字节不变；
+- 让中文 Phase Index 标题及 Step 标题可被 `get_context.py`、bundled Python 解析器、Python/Codex/Copilot SessionStart、OpenCode SessionStart 和逐轮 breadcrumb 解析器消费；边界算法不得硬编码中文标题，应由保留 workflow-state 结构推导，并兼容既有英文/自定义 workflow；
+- 在保留既有对应文件/Git 时间检查的基础上，加入 workflow 结构一致性：标签、marker、Step/限定符、标题大纲、代码围栏、行内技术片段、placeholder/XML 标签、链接目标、受保护 token 和注释块数量；默认警告、`--strict` 失败；
+- 覆盖 `getWorkflowTemplate("zh")`、中文 init 无后缀落地/hash、从 pristine 英文切换的 update/hash 刷新/幂等、中文 Phase Index/Step/平台过滤/SessionStart/breadcrumb，以及既有英文用例。
 
-Replace the PR1-A sample `workflow.zh.md` with a complete Chinese translation of the current bundled native workflow while preserving every machine-consumed contract, and prove that Chinese init/update/runtime paths behave the same as English.
+约束：不改变 workflow 语义、门禁、路由或示例；不改 `workflow.md`；不绕过 `.template-hashes.json` 冲突保护；分发 Python 保持标准库和 Python 3.9；规划未经审查不得启动任务。范围外：PR2 agent/common command/common skill、PR3 bundled/spec/Python 文案、TypeScript CLI 输出、平台专属指令模板、marketplace workflow、新 locale、README/docs-site。
 
-## Requirements
+验收应精确要求：所有主要章节和 Step 中文化；自动结构比较输出类别诊断；所有受保护内容等价；中英文运行时提取与 SessionStart/breadcrumb 正确；`init({ language: "zh" })` 写入 `.trellis/workflow.md` 且无 `.zh.md` 键；同版本 update 正确切换与幂等；默认英文兼容；`pnpm run i18n:check`、lint、typecheck、聚焦测试及全量测试通过。
 
-### Translation scope
+## 建议 `design.md`
 
-- Translate all human- and LLM-facing natural-language content in `packages/cli/src/templates/trellis/workflow.zh.md`, including headings, prose, table labels/cells, prompt examples, fenced-block comments, and HTML/Markdown comments.
-- Use the current `packages/cli/src/templates/trellis/workflow.md` as the sole semantic source. Remove the PR1-A placeholder note and stale English body rather than incrementally translating the obsolete Chinese copy.
-- Keep terminology consistent across the file. Preserve Trellis and platform proper names and stable Trellis domain terms where translating them would create ambiguous aliases.
+设计应明确英文 `workflow.md` 是唯一规范源，中文同级源从当前英文重建，仅翻译自然语言。核心决策如下：
 
-### Protected content
+1. **语言无关 Phase Index 边界**：先使用旧英文精确锚点；否则找 `[workflow-state:no_task]`，回退至其所属最近 `## ` 标题，并以前方下一个 `## ` 标题作为排他结束；均不存在则保留空结果/调用方回落。`get_step`、状态 regex、平台匹配不改。
+2. **为何不双语硬编码**：硬编码中文标题会延续语言耦合并使未来每种语言都需改解析器；已有 workflow-state 标签已是稳定且唯一的机器锚点。
+3. **结构比较模型**：在 `check-i18n-drift.js` 中添加可导入的 `extractWorkflowStructure(content)`、`compareWorkflowStructure(enContent, zhContent)` 与受 guard 保护的 `main()`；深度语法仅用于 workflow 对，通用翻译保持原检查。比较结果按类别诊断，普通模式累计 `structural` 警告，`--strict` 纳入失败条件。
+4. **init/update 数据流**：`--language zh` 到 `getWorkflowTemplate("zh")` 再经 Python placeholder 渲染，写入 `.trellis/workflow.md` 并基于落地字节建 hash；update 根据 config/env 选择中文，用同一无后缀键让 pristine 英文自动更新和刷新 hash。
+5. **失败/兼容**：英文默认不变；带英文标题的用户 workflow 继续解析；没有任一锚点的自定义 workflow 保持既有失败行为；hash 冲突仍走标准整文件更新。
 
-- Preserve commands, flags, slash commands, paths, filenames, environment variables, JSON/YAML keys, code identifiers, status values, and quoted runtime literals exactly.
-- Preserve all Phase/Step numbers and workflow qualifiers such as `[required · once]`, `[required · repeatable]`, `[optional · repeatable]`, and `[on demand]`.
-- Preserve every `[workflow-state:STATUS]` opening/closing tag, STATUS value, platform marker, placeholder, code-fence language, and link target.
-- Keep the English source byte-unchanged; Chinese remains a sibling `workflow.zh.md` source and lands as `.trellis/workflow.md` only through locale selection.
+预期产品/测试边界：`workflow.zh.md`，`workflow_phase.py`，shared/Codex/Copilot `session-start.py`，OpenCode `session-utils.js`，`check-i18n-drift.js`，及对应 checker、i18n、init、update、regression、OpenCode 测试。风险缓解：从规范英文重建并加后部哨兵；精确保护 token 比较；所有解析器族均加 no-task 边界；深度语法只限 workflow；config 驱动 fixture 避免环境泄漏。
 
-### Runtime compatibility
+## 建议 `implement.md`
 
-- Chinese Phase Index headings and Step titles must remain consumable by `get_context.py`, bundled Python workflow parsing, Python SessionStart hooks, Codex/Copilot SessionStart copies, OpenCode SessionStart context generation, and per-turn breadcrumb parsers.
-- Runtime parsing must not add Chinese-specific heading literals. Locale-sensitive Phase Index boundaries must be derived from preserved workflow-state structure with backward compatibility for existing English/custom workflows.
-- Breadcrumb STATUS pairing, platform filtering, Codex inline/sub-agent routing, and missing-structure fallback behavior must remain unchanged.
+执行顺序：
 
-### Structural drift detection
+1. **预检**：确认 `task.py current --source` 指向 PR1-B；记录 `git status --short`；读取任务、JSONL、研究和规范；每次改 function/class/method 前运行 GitNexus upstream impact（上游影响分析），HIGH/CRITICAL 先告知用户；确认英文源不在编辑集。
+2. **可执行结构契约**：将 checker 重构为纯 helper + CLI；实现结构提取/类别诊断/严格模式；为每类别写正反例；先证明过时 PR1-A 中文源会有意义地失败。
+3. **重建翻译**：从当前英文源替换 `workflow.zh.md`，翻译全部自然语言，保留受保护内容，删除 placeholder；运行一致性/完整性测试并逐章节人工审阅。
+4. **解析器兼容**：在 `workflow_phase.py`、shared/Codex/Copilot Python SessionStart 和 OpenCode 中落实英文优先 + no-task 回落；不改 `get_step`、状态 regex、平台匹配、Codex 路由或回落字典；增加中文与畸形锚点用例。
+5. **init 集成**：中文模板完整性、精确落地内容、无语言后缀路径/hash、生成 `get_context.py` 的 Phase Index/Step/平台过滤；英文精确断言保留。
+6. **update 集成**：从带有效英文 hash 的项目开始，设置用户拥有的 `language: zh`，运行非交互自动更新，验证中文内容/hash/config 和二次运行幂等；恢复任何 `TRELLIS_LANGUAGE`。
+7. **验证与复核**：运行聚焦 Vitest、`pnpm run i18n:check`、`pnpm lint`、`pnpm typecheck`、`pnpm test`；确认英文源无 diff、变更仅限 PR1-B；提交前运行 `npx gitnexus detect-changes --scope all`。规划阶段不启动/归档/提交。
 
-- Extend i18n drift validation with content-based structural parity for the English/Chinese workflow pair, while retaining existing missing-counterpart and Git-recency checks.
-- Structural parity must cover workflow-state tags, platform markers, numbered Steps and qualifiers, heading outline, code fences, inline technical spans, placeholders/XML-like tags, link targets, protected lexical tokens, and comment-block count.
-- Drift remains warning-only by default and fails under `--strict`.
-- Translation-completeness checks must reject the PR1-A placeholder and an English tail without rejecting intentional English proper names/identifiers.
+回滚点：结构签名过严时独立回滚 checker/测试；翻译评审失败时只还原 `workflow.zh.md`；解析器兼容改动必须作为跨 Python/JS 副本整体回滚；测试若揭露既有缺陷，记录而非掩盖。
 
-### Integration coverage
+## 建议 `implement.jsonl`
 
-- Verify `getWorkflowTemplate("zh")` returns the complete Chinese source and unsupported locales still fall back to exact English.
-- Verify `trellis init --language zh` lands the exact Chinese workflow at `.trellis/workflow.md`, creates no locale-suffixed landed file, and records the Chinese landed hash under the locale-agnostic workflow key.
-- Verify `trellis update` switches a pristine hash-tracked English workflow to Chinese based on selected project language, refreshes its hash, preserves user-owned config, and is idempotent on rerun.
-- Verify compact Phase Index extraction, Step extraction, platform filtering, SessionStart overview generation, and breadcrumb emission against Chinese workflow content.
-- Preserve all existing English init/update/runtime tests.
+清单应引用：`.trellis/spec/cli/backend/index.md`、`workflow-state-contract.md`、`commands-update.md`、`script-conventions.md`、`.trellis/spec/cli/unit-test/index.md`、`conventions.md`、`integration-patterns.md`；父任务的 `sync-call-chain.md` 与 `template-hashes.md`；以及本任务的 `workflow-runtime-parser-audit.md`、`workflow-structure-and-drift-plan.md`、`workflow-init-update-test-plan.md`。每条 `reason` 用中文说明其提供的解析器、hash、Python 兼容、测试或语言选择证据。
 
-## Constraints
+## 建议 `check.jsonl`
 
-- Do not change the semantic workflow, required gates, routing decisions, or examples beyond translation and parser compatibility.
-- Do not modify `packages/cli/src/templates/trellis/workflow.md`.
-- Do not bypass `.template-hashes.json` conflict protection when switching locale.
-- Distributed Python remains standard-library-only and Python 3.9 compatible.
-- Planning only: do not start this task until `prd.md`, `design.md`, `implement.md`, and context manifests are reviewed.
+清单应引用 `workflow-state-contract.md`、`commands-update.md`、`script-conventions.md`、`quality-guidelines.md`、单测 `conventions.md` 与 `integration-patterns.md`，以及上述三份 PR1-B 研究文档。`reason` 应覆盖标签/解析器/update、hash/用户编辑保护/幂等、Python 3.9、精确非自证断言、真实文件系统测试及解析器/结构/测试矩阵交叉核对。
 
-## Out of Scope
+## 交接说明
 
-- PR2 agents, common commands, or common skills.
-- PR3 bundled skills, spec templates, or Python user-facing message migration.
-- CLI TypeScript output/help translation.
-- Platform-specific instruction-template translation.
-- Marketplace workflow translation or new locales.
-- README/docs-site changes unless separately requested.
-
-## Acceptance Criteria
-
-- [ ] `workflow.zh.md` is based on the current English source, contains Chinese content in every major section and numbered Step, and contains no PR1-A placeholder or stale English tail.
-- [ ] English and Chinese workflow templates satisfy automated structural parity with category-specific diagnostics.
-- [ ] All protected commands, paths, statuses, Phase/Step numbers, workflow-state tags, platform markers, placeholders, code fences, and link targets remain equivalent.
-- [ ] Chinese Phase Index and Step content are returned correctly by `get_context.py --mode phase` and `--mode phase --step <X.Y>` with platform filtering.
-- [ ] Shared Python, Codex, Copilot, and OpenCode SessionStart parsers produce a compact Chinese workflow overview without detailed Step bodies or duplicated workflow-state blocks.
-- [ ] Python and OpenCode breadcrumb parsers emit Chinese workflow-state bodies verbatim and preserve fallback behavior.
-- [ ] `init({ language: "zh" })` lands exact Chinese workflow bytes at `.trellis/workflow.md`; no `.zh.md` landed path/hash key exists.
-- [ ] Same-version update changes a pristine English landed workflow to Chinese, refreshes `.trellis/workflow.md` hash to the Chinese bytes, preserves configured language, and is idempotent on rerun.
-- [ ] Default English init/update output remains byte-compatible with the current English template.
-- [ ] `pnpm run i18n:check`, lint, typecheck, focused tests, and the full test suite pass.
-```
-
----
-
-## Proposed `design.md`
-
-```markdown
-# Design: complete Chinese workflow with runtime-safe structural parity
-
-## Context
-
-PR1-A introduced locale selection and a sample `workflow.zh.md`, but the Chinese file still contains an explicit placeholder and an older English workflow body. The current workflow is runtime input, not documentation only: parsers consume workflow-state tags, platform markers, numbered Step headings, and the compact Phase Index range. Full heading translation therefore requires parser compatibility, structural validation, and init/update round-trip coverage.
-
-## Design Goals
-
-1. Make the Chinese workflow semantically complete and reviewable beside the untouched English source.
-2. Preserve every machine-consumed token and workflow gate.
-3. Remove locale-specific English-heading assumptions from compact Phase Index extraction without changing normal English behavior.
-4. Detect future structural drift before it reaches generated projects.
-5. Keep landed paths and hash ownership locale-agnostic.
-
-## Non-Goals
-
-- General Markdown translation infrastructure beyond the workflow pair.
-- Translation of platform templates, skills, specs, CLI text, or Python user messages.
-- Workflow semantic redesign.
-- Migration manifests or partial workflow block merging.
-
-## Source and Translation Boundary
-
-`packages/cli/src/templates/trellis/workflow.md` remains the authoritative English source and is not edited. `workflow.zh.md` is rebuilt from the current English file, then only natural-language surfaces are translated.
-
-Protected material remains exact:
-
-- machine markers: workflow-state tags, platform marker lines, placeholders;
-- control identifiers: status values, Phase/Step numbers, bracket qualifiers;
-- technical material: commands, flags, paths, filenames, env vars, keys, identifiers, slash commands, link targets;
-- code-fence delimiter/language sequence and exact quoted runtime output literals.
-
-Natural-language comments and sample prompts are translated even inside fenced blocks. Proper names and stable Trellis domain tokens remain English where required for identity.
-
-## Locale-Neutral Phase Index Extraction
-
-### Problem
-
-`workflow_phase.py`, three Python SessionStart implementations, and OpenCode session context currently search for exact `## Phase Index` and `## Phase 1: Plan` headings. Translating these headings would make the compact overview empty.
-
-### Decision
-
-Introduce equivalent `extract phase-index section` logic at each standalone parser boundary:
-
-1. Prefer the existing exact English start anchor for backward compatibility.
-2. Otherwise find the preserved `[workflow-state:no_task]` opening tag and scan backward to its enclosing level-2 heading.
-3. From the start heading, scan forward to the next level-2 heading and use it as the exclusive end.
-4. Return empty when neither anchor is available, preserving existing caller fallback behavior.
-
-`get_step` remains unchanged because it already matches `#### <number>` independently of title language. Workflow-state and platform marker parsers remain unchanged.
-
-### Why not bilingual hardcoding
-
-Hardcoding `阶段索引` / `Phase 1：规划` would repeat the current locale coupling and require parser edits for every future language. The preserved workflow-state tag is already a documented stable machine identifier and uniquely locates the shipped Phase Index.
-
-### Why not add new sentinels to English
-
-The i18n architecture deliberately leaves upstream English sources untouched to reduce merge conflicts. Existing workflow-state tags provide a sufficient stable anchor.
-
-## Structural Parity Model
-
-Enhance `packages/cli/scripts/check-i18n-drift.js` with import-safe pure helpers for workflow structure extraction/comparison. Generic translation files continue to receive counterpart and Git-recency checks; the deep grammar applies only to `workflow.zh.md`.
-
-The structure signature contains:
-
-- ordered workflow-state opening/closing lines;
-- ordered platform opening/closing lines;
-- ordered Step ids and preserved qualifiers;
-- heading-level outline with stable Phase/Step ids but no title text;
-- ordered code-fence delimiters/languages and balance state;
-- multisets of inline code spans, placeholders/XML-like tags, and protected lexical tokens;
-- ordered link targets;
-- HTML comment-block count.
-
-Comparison returns category-specific diagnostics. CLI warning mode increments a structural count; `--strict` includes structural mismatches in its non-zero condition. Unit tests import the pure comparator, avoiding dependence on Git commit timestamps.
-
-Translation completeness is checked separately with durable sentinels: no PR1-A placeholder, Chinese characters in every major/Step section, and Chinese content near late-file sections.
-
-## Init / Update Data Flow
-
-### Init
-
-`--language zh` -> locale resolution -> `getWorkflowTemplate("zh")` -> Python command placeholder rendering -> write `.trellis/workflow.md` -> initialize hash from landed bytes.
-
-### Update
-
-config/env language resolution -> collect Chinese template under key `.trellis/workflow.md` -> hash classifier sees pristine English landed bytes matching stored English hash -> auto-update whole file -> refresh the same key with Chinese landed hash.
-
-No `.zh.md` target path or hash key is introduced. User-modified workflow conflict behavior remains unchanged.
-
-## File Boundaries
-
-Expected product/test files:
-
-- `packages/cli/src/templates/trellis/workflow.zh.md`
-- `packages/cli/src/templates/trellis/scripts/common/workflow_phase.py`
-- `packages/cli/src/templates/shared-hooks/session-start.py`
-- `packages/cli/src/templates/codex/hooks/session-start.py`
-- `packages/cli/src/templates/copilot/hooks/session-start.py`
-- `packages/cli/src/templates/opencode/lib/session-utils.js`
-- `packages/cli/scripts/check-i18n-drift.js`
-- `packages/cli/test/scripts/check-i18n-drift.test.ts`
-- `packages/cli/test/utils/i18n.test.ts`
-- `packages/cli/test/commands/init.integration.test.ts`
-- `packages/cli/test/commands/update.integration.test.ts`
-- `packages/cli/test/regression.test.ts`
-- `packages/cli/test/templates/opencode.test.ts`
-
-Do not add files merely to satisfy this list; reuse existing test harnesses where they provide meaningful behavior coverage.
-
-## Compatibility and Failure Behavior
-
-- English source and default English landing are unchanged.
-- Existing custom workflows with exact English headings continue to parse.
-- Localized shipped workflows parse through the preserved no-task tag.
-- Workflows without either anchor retain the existing empty/fallback behavior.
-- The checker remains warning-only unless `--strict` is passed.
-- Hash conflict handling remains the standard whole-file update flow.
-
-## Rollout and Rollback
-
-This is bundled-template content plus parser compatibility; no data migration is required. Rollback consists of reverting Chinese content/parser/checker/test changes. Existing English projects remain unaffected throughout. A Chinese landed workflow can be returned to English by selecting `en` and running update through normal hash rules.
-
-## Risks and Mitigations
-
-| Risk | Mitigation |
-|---|---|
-| Translation omits a new workflow section | Canonical rebuild from current English + structural parity + late-file Chinese sentinels. |
-| Marker/token translation breaks runtime | Exact protected-token comparison and runtime integration tests. |
-| Phase Index disappears after heading translation | Locale-neutral no-task-tag boundary extraction in all parser families. |
-| Checker becomes noisy for unrelated translations | Deep structural grammar limited to workflow pair. |
-| Locale switch is mistaken for user edit | Integration test starts from a pristine stored English hash and verifies auto-update/hash refresh. |
-| Test environment leaks `TRELLIS_LANGUAGE` | Prefer config-driven update fixture; explicitly restore env in any flag-driven case. |
-```
-
----
-
-## Proposed `implement.md`
-
-```markdown
-# Implementation Plan: complete Chinese workflow
-
-## Pre-Flight
-
-- [ ] Confirm `task.py current --source` points to `.trellis/tasks/07-27-i18n-workflow-pr1b`; do not start it.
-- [ ] Snapshot `git status --short` and do not include unrelated dirty files.
-- [ ] Read `prd.md`, `design.md`, this plan, both JSONL manifests, and referenced research/specs.
-- [ ] Before editing each function/method/class, run GitNexus upstream impact analysis and record direct callers/process risk. Warn before any HIGH/CRITICAL edit.
-- [ ] Confirm `packages/cli/src/templates/trellis/workflow.md` is the current canonical source and remains outside the edit set.
-
-## 1. Add Executable Structural Contract
-
-- [ ] Refactor `check-i18n-drift.js` into import-safe pure structure helpers plus guarded CLI entry.
-- [ ] Add workflow-only structure extraction for workflow-state tags, platform markers, Steps/qualifiers, heading outline, fences, inline code, placeholders, link targets, protected tokens, and comment count.
-- [ ] Add category-specific mismatch reporting, a structural summary count, and `--strict` failure integration while preserving existing missing/recency behavior.
-- [ ] Add focused positive/negative comparator tests with one mutation per category.
-- [ ] Review gate: tests must fail against the stale PR1-A Chinese source for meaningful structural reasons before translation is replaced.
-
-## 2. Rebuild and Translate `workflow.zh.md`
-
-- [ ] Replace the file from the current English source rather than patching the obsolete body.
-- [ ] Translate every natural-language heading, paragraph, table cell, prompt example, shell comment, and HTML/Markdown comment.
-- [ ] Preserve protected commands, paths, identifiers, statuses, Phase/Step numbers, qualifiers, workflow-state tags, platform markers, placeholders, fences, and links exactly.
-- [ ] Remove the PR1-A placeholder note.
-- [ ] Run parity/completeness tests and manually review every top-level section and workflow-state body against English.
-- [ ] Review gate: no major section or numbered Step may remain as an English prose block.
-
-## 3. Make Compact Phase Parsing Locale-Neutral
-
-- [ ] Update `workflow_phase.py:get_phase_index` to support exact-English anchor plus no-task-tag enclosing-H2 fallback; use next H2 as end boundary.
-- [ ] Apply equivalent extraction behavior to shared, Codex, and Copilot Python SessionStart templates.
-- [ ] Apply equivalent behavior to OpenCode `buildSessionContext`.
-- [ ] Leave `get_step`, workflow-state regexes, platform matching, Codex mode routing, and fallback dictionaries untouched.
-- [ ] Add Chinese Phase Index/Step/SessionStart cases plus malformed-anchor compatibility cases.
-- [ ] Review gate: existing English runtime tests and new Chinese cases both pass; no duplicated breadcrumb block appears in SessionStart output.
-
-## 4. Strengthen Locale and Init Integration
-
-- [ ] Update `getWorkflowTemplate("zh")` tests to assert full-source completeness, late-file Chinese content, and structural parity.
-- [ ] Strengthen Chinese init integration from prefix-only to exact landed-content equality after Python placeholder rendering.
-- [ ] Assert no locale-suffixed landed file/hash key and exact Chinese hash under `.trellis/workflow.md`.
-- [ ] Execute generated `get_context.py` against the initialized Chinese project to verify compact Phase Index, Step extraction, and platform filtering.
-- [ ] Preserve exact default-English assertions.
-
-## 5. Add Update Language-Switch Integration
-
-- [ ] Initialize an English project with a valid stored English workflow hash.
-- [ ] Activate top-level `language: zh` in config while preserving the config as user-owned test state.
-- [ ] Run same-version update through a non-interactive path that still applies auto-updates.
-- [ ] Assert exact Chinese landed bytes, locale-agnostic hash key/value, no `.zh.md` output, and preserved config.
-- [ ] Rerun update and assert workflow/hash idempotency.
-- [ ] Restore any `TRELLIS_LANGUAGE` mutation in test teardown.
-
-## 6. Validation
-
-From `packages/cli/`:
-
-- [ ] `pnpm vitest run test/scripts/check-i18n-drift.test.ts`
-- [ ] `pnpm vitest run test/utils/i18n.test.ts`
-- [ ] `pnpm vitest run test/commands/init.integration.test.ts`
-- [ ] `pnpm vitest run test/commands/update.integration.test.ts`
-- [ ] `pnpm vitest run test/regression.test.ts`
-- [ ] `pnpm vitest run test/templates/opencode.test.ts`
-- [ ] `pnpm run i18n:check`
-- [ ] `pnpm lint`
-- [ ] `pnpm typecheck`
-- [ ] `pnpm test`
-
-## 7. Final Review
-
-- [ ] Compare English/Chinese structural signatures and inspect diagnostics output.
-- [ ] Confirm English source has no diff.
-- [ ] Confirm changes are limited to PR1-B translation, parser compatibility, drift checking, and tests.
-- [ ] Run `gitnexus_detect_changes({scope: "all"})` before any commit and verify affected symbols/flows match the plan.
-- [ ] Do not start/archive/commit from the planning phase; return artifacts for user review first.
-
-## Rollback Points
-
-- After Step 1: revert checker/tests if the signature is too strict before translating.
-- After Step 2: restore only `workflow.zh.md` if translation review fails; English remains unaffected.
-- After Step 3: revert parser compatibility as one unit across all Python/JS copies to avoid cross-platform skew.
-- After Steps 4/5: revert test-only changes independently if they expose an unrelated pre-existing defect; document rather than masking it.
-```
-
----
-
-## Proposed `implement.jsonl`
-
-```jsonl
-{"file":".trellis/spec/cli/backend/index.md","reason":"Backend pre-development checklist and required workflow/parser/update guidance."}
-{"file":".trellis/spec/cli/backend/workflow-state-contract.md","reason":"Machine marker syntax, parser/stripper parity, whole-file workflow update, and breadcrumb invariants."}
-{"file":".trellis/spec/cli/backend/commands-update.md","reason":"Locale-selected whole-file workflow update, hash ownership, idempotency, and update integration conventions."}
-{"file":".trellis/spec/cli/backend/script-conventions.md","reason":"Distributed Python 3.9 compatibility and workflow_phase.py conventions."}
-{"file":".trellis/spec/cli/unit-test/index.md","reason":"Test quality gate and required validation commands."}
-{"file":".trellis/spec/cli/unit-test/conventions.md","reason":"Exact assertions, non-tautological fixtures, and environment isolation requirements."}
-{"file":".trellis/spec/cli/unit-test/integration-patterns.md","reason":"Real temp-directory init/update integration test pattern."}
-{"file":".trellis/tasks/05-20-trellis-i18n-chinese-support/research/sync-call-chain.md","reason":"Existing locale source-selection and init/update call-chain research."}
-{"file":".trellis/tasks/05-20-trellis-i18n-chinese-support/research/template-hashes.md","reason":"Locale-agnostic landed path/hash contract for workflow language switching."}
-{"file":".trellis/tasks/07-27-i18n-bundled-python-pr3/research/workflow-runtime-parser-audit.md","reason":"Audit of every English-heading-dependent runtime parser and recommended locale-neutral boundary."}
-{"file":".trellis/tasks/07-27-i18n-bundled-python-pr3/research/workflow-structure-and-drift-plan.md","reason":"Protected-token taxonomy and structural comparator design."}
-{"file":".trellis/tasks/07-27-i18n-bundled-python-pr3/research/workflow-init-update-test-plan.md","reason":"Complete locale landing, hash, runtime, and idempotency test matrix."}
-```
-
-## Proposed `check.jsonl`
-
-```jsonl
-{"file":".trellis/spec/cli/backend/workflow-state-contract.md","reason":"Verify workflow-state tags, parser compatibility, update semantics, and breadcrumb gates remain intact."}
-{"file":".trellis/spec/cli/backend/commands-update.md","reason":"Verify whole-file workflow update, user-edit protection, locale hash refresh, and idempotency."}
-{"file":".trellis/spec/cli/backend/script-conventions.md","reason":"Verify distributed Python parser changes remain cross-platform and Python 3.9 compatible."}
-{"file":".trellis/spec/cli/backend/quality-guidelines.md","reason":"General backend quality and routing-entry-path review."}
-{"file":".trellis/spec/cli/unit-test/conventions.md","reason":"Check tests use exact, isolated, meaningful assertions without duplicated/tautological coverage."}
-{"file":".trellis/spec/cli/unit-test/integration-patterns.md","reason":"Check init/update tests exercise real filesystem and hash behavior."}
-{"file":".trellis/tasks/07-27-i18n-bundled-python-pr3/research/workflow-runtime-parser-audit.md","reason":"Cross-check that all identified parser families were covered."}
-{"file":".trellis/tasks/07-27-i18n-bundled-python-pr3/research/workflow-structure-and-drift-plan.md","reason":"Validate structural parity categories and protected-token preservation."}
-{"file":".trellis/tasks/07-27-i18n-bundled-python-pr3/research/workflow-init-update-test-plan.md","reason":"Validate the full init/update/runtime regression matrix."}
-```
-
-## Handoff notes
-
-- If the caller wants each task self-contained, copy the three PR1-B research files into `.trellis/tasks/07-27-i18n-workflow-pr1b/research/` after the active task is deliberately switched, then update JSONL paths. The Research Agent could not do that under its current scope.
-- The plan intentionally excludes README/docs-site work because the delegated PR1-B scope names translation, structural parity, and init/update integration only.
-- Do not run `task.py start` until these artifacts are reviewed and the target task is actually current.
+- 若需任务自包含，应在有意识切换活动任务后，将三份 PR1-B 研究文件复制到 `.trellis/tasks/07-27-i18n-workflow-pr1b/research/`，再更新 JSONL 路径；
+- 计划有意排除 README/docs-site，因为委派的 PR1-B 范围只包含翻译、结构一致性及 init/update 集成；
+- 未审查且目标任务未真正成为 current 前，不得运行 `task.py start`。

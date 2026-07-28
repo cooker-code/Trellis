@@ -1,82 +1,69 @@
-# Research: PR1-B workflow runtime parser audit
+# 调研：PR1-B workflow（工作流）运行时解析器审计
 
-- **Query**: Inspect every runtime consumer of `workflow.md` before fully translating `workflow.zh.md`.
-- **Scope**: internal
-- **Date**: 2026-07-27
+- **查询**：在完整翻译 `workflow.zh.md` 前审查每个 `workflow.md` 运行时消费者。
+- **范围**：内部。
+- **日期**：2026-07-27
 
-## Findings
+## 当前源状态
 
-### Current source state
+- 规范英文源：`packages/cli/src/templates/trellis/workflow.md`（710 行）；
+- 中文源：`packages/cli/src/templates/trellis/workflow.zh.md`（700 行）；
+- 中文文件仍是 PR1-A 示例：仅开头部分已翻译，保留显式 placeholder 注释，其余为旧英文 workflow 正文；
+- 中文副本结构已过时，缺少当前英文的 `Request Triage`、`Planning Artifacts`、`Parent / Child Task Trees`、`Active Task Routing`、`Guardrails` 等章节，且 marker 行数不同（中文 30 行、英文 26 行）；
+- `.trellis/workflow.md` 当前与打包英文源逐字一致，并非中文源。
 
-- Canonical English source: `packages/cli/src/templates/trellis/workflow.md` (710 lines).
-- Chinese source: `packages/cli/src/templates/trellis/workflow.zh.md` (700 lines).
-- The Chinese file is still the PR1-A sample: only the opening sections are translated, an explicit placeholder comment remains, and the rest is an older English workflow body.
-- The Chinese copy is structurally stale: it lacks current English sections such as `Request Triage`, `Planning Artifacts`, `Parent / Child Task Trees`, `Active Task Routing`, and `Guardrails`; its marker count also differs (30 platform marker lines versus 26 in English).
-- `.trellis/workflow.md` currently matches the packaged English source byte-for-byte. It is not the Chinese source.
+## 已经语言无关的安全结构
 
-### Runtime-safe structures already language-neutral
-
-| Consumer | Structure | Why Chinese prose is safe |
+| 消费者 | 结构 | 中文正文安全原因 |
 |---|---|---|
-| `shared-hooks/inject-workflow-state.py` | `[workflow-state:STATUS]...[/workflow-state:STATUS]` | Regex keys only on preserved tags (`:170-203`). Bodies are emitted verbatim. |
-| `opencode/plugins/inject-workflow-state.js` | Same workflow-state tags | Same tag/backreference contract (`:32-98`). |
-| `workflow_phase.py:get_step` | `#### <X.Y>` | `_STEP_HEADING_RE` keys on the preserved numeric Step id, not the English title (`:34`, `:100-126`). |
-| `workflow_phase.py:filter_platform` | `[Platform A, ...]` markers | Marker values are explicitly preserved (`:31`, `:47-60`, `:171-205`). |
+| `shared-hooks/inject-workflow-state.py` | `[workflow-state:STATUS]...[/workflow-state:STATUS]` | regex（正则表达式）仅匹配保留标签，正文原样输出（`:170-203`）。 |
+| `opencode/plugins/inject-workflow-state.js` | 相同 workflow-state 标签 | 相同标签/反向引用契约（`:32-98`）。 |
+| `workflow_phase.py:get_step` | `#### <X.Y>` | `_STEP_HEADING_RE` 只匹配保留的数值 Step ID，不依赖英文标题（`:34`、`:100-126`）。 |
+| `workflow_phase.py:filter_platform` | `[Platform A, ...]` marker | marker 值明确保留（`:31`、`:47-60`、`:171-205`）。 |
 
-The breadcrumb bodies, step titles, prose, tables, examples, and comments can therefore be translated without affecting these consumers, provided workflow-state tags, Step ids, and platform markers remain exact.
+因此可翻译 breadcrumb 正文、Step 标题、段落、表格、示例和注释，前提是 workflow-state 标签、Step ID 与平台 marker 完全保留。
 
-### Language-coupled Phase Index consumers
+## 依赖英文 Phase Index 标题的消费者
 
-Five shipped parser paths currently depend on exact English headings:
+以下五条已发布路径依赖精确英文标题：
 
-1. `packages/cli/src/templates/trellis/scripts/common/workflow_phase.py`
-   - `_PHASE_INDEX_HEADING = "## Phase Index"` at `:38`.
-   - End boundary is exact `"## Phase 1: Plan"` at `:80`.
-2. `packages/cli/src/templates/shared-hooks/session-start.py`
-   - `_build_workflow_overview` calls `_extract_range(content, "Phase Index", "Phase 1: Plan")` at `:714`.
-3. `packages/cli/src/templates/codex/hooks/session-start.py`
-   - Same exact call at `:461`.
-4. `packages/cli/src/templates/copilot/hooks/session-start.py`
-   - Same exact call at `:466`.
-5. `packages/cli/src/templates/opencode/lib/session-utils.js`
-   - Exact comparisons at `:399-404`.
+1. `packages/cli/src/templates/trellis/scripts/common/workflow_phase.py`：`_PHASE_INDEX_HEADING = "## Phase Index"`（`:38`），结束边界为 `"## Phase 1: Plan"`（`:80`）；
+2. `packages/cli/src/templates/shared-hooks/session-start.py`：`_build_workflow_overview` 调用 `_extract_range(content, "Phase Index", "Phase 1: Plan")`（`:714`）；
+3. `packages/cli/src/templates/codex/hooks/session-start.py`：相同调用（`:461`）；
+4. `packages/cli/src/templates/copilot/hooks/session-start.py`：相同调用（`:466`）；
+5. `packages/cli/src/templates/opencode/lib/session-utils.js`：精确比较（`:399-404`）。
 
-If `## Phase Index` and `## Phase 1: Plan` are translated, these paths return an empty Phase Index overview. Step-specific extraction still works because Step numbers remain stable.
+若翻译 `## Phase Index` 与 `## Phase 1: Plan`，上述路径会返回空的紧凑概览；Step 提取仍因数值稳定而可用。
 
-### Recommended parser compatibility strategy
+## 推荐的解析器兼容策略
 
-The delegated scope requires translation of all natural-language headings while preserving Phase/Step **numbers**, not the English labels. Treating the two English headings as permanently untranslated would weaken “full Chinese translation” and keep a locale-specific parser contract. Prefer a language-neutral boundary algorithm:
+委派范围要求翻译所有自然语言标题，同时保持 Phase/Step **数字**。应使用语言无关的边界算法：
 
-1. Find the exact preserved opening tag `[workflow-state:no_task]`.
-2. Scan backward to the nearest level-2 Markdown heading (`## `); this is the Phase Index start.
-3. Scan forward to the next level-2 heading; this is the start of the detailed Phase 1 walkthrough and therefore the exclusive end.
-4. Preserve the existing exact-English lookup as a backward-compatible first path or fallback for custom workflows that omit `no_task`.
-5. If neither anchor exists, preserve current failure behavior (empty overview / existing caller fallback).
+1. 先使用现有精确英文查找，以兼容缺少 `no_task` 的自定义 workflow；
+2. 否则寻找保留的 `[workflow-state:no_task]` 开标签；
+3. 向后扫描到最近的二级 Markdown 标题（`## `），作为 Phase Index 起点；
+4. 从该标题向前扫描到下一个二级标题，作为详细 Phase 1 讲解的排他结束点；
+5. 两种锚点均不存在时保留现有失败行为（空概览/调用方既有回落）。
 
-This avoids modifying the English source (important for upstream merges), does not hardcode Chinese labels, and supports future locales as long as workflow-state tags retain their documented machine syntax.
+不要硬编码 `阶段索引` / `Phase 1：规划`。这会重复语言耦合，并要求每种未来语言修改解析器。已有 workflow-state 标签是文档化的稳定机器标识，且能唯一定位已发布 Phase Index。独立 hook 副本应实现等效逻辑，不要为 PR1-B 引入跨文件导入重构。
 
-The standalone hook copies should use equivalent logic rather than introducing a cross-file import refactor in PR1-B. The hooks are distributed artifacts with deliberately self-contained parsing code.
+## 必须保持的行为
 
-### Parser behavior that must remain unchanged
+- workflow-state STATUS 字符集继续为 `[A-Za-z0-9_-]+`，开闭标签使用相同 STATUS 反向引用；
+- `get_step("X.Y")` 仍在下一个 `####`、`##` 或水平线终止；
+- 平台匹配保持大小写及分隔符不敏感；
+- Codex `planning-inline` / `in_progress-inline` 选择不变；
+- SessionStart 仍从紧凑概览移除 breadcrumb 块、HTML 注释及平台 marker 行；
+- 缺失/畸形 workflow 结构维持可见回落，不新增隐式翻译回落字典；
+- 英文 workflow 字节不变。
 
-- Workflow-state STATUS charset stays `[A-Za-z0-9_-]+` and opening/closing tags use the same STATUS backreference.
-- `get_step("X.Y")` still terminates at the next `####`, `##`, or horizontal rule.
-- Platform matching remains case-insensitive and separator-insensitive.
-- Codex `planning-inline` / `in_progress-inline` selection is unchanged.
-- SessionStart still strips breadcrumb blocks, HTML comments, and platform marker lines from the compact overview.
-- Missing/malformed workflow structures retain visible fallback behavior rather than receiving a hidden translated fallback dictionary.
-- The English workflow remains byte-unchanged.
+## 受影响测试与注意事项
 
-## Existing tests affected
-
-- Runtime Phase Index and SessionStart tests are concentrated in `packages/cli/test/regression.test.ts:3364-3574`; they currently assert English output only.
-- OpenCode SessionStart parsing is covered through `packages/cli/test/templates/opencode.test.ts` and should gain one Chinese-source case if the JS boundary logic changes.
-- Breadcrumb parser tests around `packages/cli/test/regression.test.ts:2696-2965` remain valid because tags are preserved.
-- `packages/cli/test/templates/trellis.test.ts` asserts English semantic phrases and should continue to use the legacy English export; Chinese parity checks should be additive.
-
-## Caveats
-
-- A generic “first H2 / second H2” parser is too weak; anchor on `[workflow-state:no_task]` so front matter or introductory H2 sections cannot shift the range.
-- Do not translate or rename `[workflow-state:no_task]`; it becomes both a breadcrumb key and the locale-neutral Phase Index anchor.
-- `# Development Workflow - Session Summary` and other hook-generated wrapper text are outside PR1-B content scope; only the workflow-derived body becomes Chinese.
-- Parser changes trigger the project’s workflow-state contract review requirement. Consult `.trellis/spec/cli/backend/workflow-state-contract.md` before implementation.
+- Phase Index/SessionStart 运行时测试集中于 `packages/cli/test/regression.test.ts:3364-3574`，应补充中文；
+- OpenCode SessionStart 由 `packages/cli/test/templates/opencode.test.ts` 覆盖，若改 JS 边界逻辑应增加中文源用例；
+- `packages/cli/test/regression.test.ts:2696-2965` 的 breadcrumb 测试可保留，因为标签不变；
+- `packages/cli/test/templates/trellis.test.ts` 的英文语义断言继续使用旧英文导出，中文一致性断言应增量添加；
+- 不能仅使用“首个 H2/第二个 H2”算法；必须锚定 `[workflow-state:no_task]`，避免 frontmatter 或引言 H2 改变范围；
+- 不得翻译或重命名 `[workflow-state:no_task]`；它同时是 breadcrumb 键和语言无关 Phase Index 锚点；
+- `# Development Workflow - Session Summary` 等 hook 生成包装文案不在 PR1-B 内容范围，只有由 workflow 派生的正文变为中文；
+- 解析器改动须按项目 workflow-state contract（工作流状态契约）审查，实施前阅读 `.trellis/spec/cli/backend/workflow-state-contract.md`。
