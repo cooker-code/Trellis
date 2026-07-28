@@ -59,13 +59,13 @@ Replace the PR1-A sample `workflow.zh.md` with a complete Chinese translation of
 
 ## Acceptance Criteria
 
-- [ ] `workflow.zh.md` is based on the current English source, contains Chinese content in every major section and numbered Step, and contains no PR1-A placeholder or stale English tail.
-- [ ] English and Chinese workflow templates satisfy automated structural parity with category-specific diagnostics.
-- [ ] All protected commands, paths, statuses, Phase/Step numbers, workflow-state tags, platform markers, placeholders, code fences, and link targets remain equivalent.
-- [ ] Chinese Phase Index and Step content are returned correctly by `get_context.py --mode phase` and `--mode phase --step <X.Y>` with platform filtering.
-- [ ] Shared Python, Codex, Copilot, and OpenCode SessionStart parsers produce a compact Chinese workflow overview without detailed Step bodies or duplicated workflow-state blocks.
-- [ ] Python and OpenCode breadcrumb parsers emit Chinese workflow-state bodies verbatim and preserve fallback behavior.
-- [ ] `init({ language: "zh" })` lands exact Chinese workflow bytes at `.trellis/workflow.md`; no `.zh.md` landed path/hash key exists.
-- [ ] Same-version update changes a pristine English landed workflow to Chinese, refreshes `.trellis/workflow.md` hash to the Chinese bytes, preserves configured language, and is idempotent on rerun.
-- [ ] Default English init/update output remains byte-compatible with the current English template.
-- [ ] `pnpm run i18n:check`, lint, typecheck, focused tests, and the full test suite pass.
+- [x] `workflow.zh.md` is based on the current English source, contains Chinese content in every major section and numbered Step, and contains no PR1-A placeholder or stale English tail.
+- [x] English and Chinese workflow templates satisfy automated structural parity with category-specific diagnostics.
+- [x] All protected commands, paths, statuses, Phase/Step numbers, workflow-state tags, platform markers, placeholders, code fences, and link targets remain equivalent.
+- [x] Chinese Phase Index and Step content are returned correctly by `get_context.py --mode phase` and `--mode phase --step <X.Y>` with platform filtering.
+- [x] Shared Python, Codex, Copilot, and OpenCode SessionStart parsers produce a compact Chinese workflow overview without detailed Step bodies or duplicated workflow-state blocks.
+- [x] Python and OpenCode breadcrumb parsers emit Chinese workflow-state bodies verbatim and preserve fallback behavior.
+- [x] `init({ language: "zh" })` lands exact Chinese workflow bytes at `.trellis/workflow.md`; no `.zh.md` landed path/hash key exists.
+- [x] Same-version update changes a pristine English landed workflow to Chinese, refreshes `.trellis/workflow.md` hash to the Chinese bytes, preserves configured language, and is idempotent on rerun.
+- [x] Default English init/update output remains byte-compatible with the current English template.
+- [x] `pnpm run i18n:check`, lint, typecheck, focused tests, and the full test suite pass.

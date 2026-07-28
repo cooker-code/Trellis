@@ -80,3 +80,13 @@ From `packages/cli/`:
 - After Step 2: restore only `workflow.zh.md` if translation review fails; English remains unaffected.
 - After Step 3: revert parser compatibility as one unit across all Python/JS copies to avoid cross-platform skew.
 - After Steps 4/5: revert test-only changes independently if they expose an unrelated pre-existing defect; document rather than masking it.
+
+## Completion record
+
+- Implementation commit: `bf5a6718 feat(i18n): 完成中文本地化内容链路`.
+- The English workflow has no diff from `main`; only `workflow.zh.md` carries the localized workflow source.
+- CLI build passed after rebuilding the local Core type artifacts.
+- CLI lint and TypeScript typecheck passed.
+- Python type/lint check completed with 0 errors (64 existing unused-import warnings).
+- i18n check covered 85 translations with 0 missing, 0 drift, 0 structural issues, and 0 Python issues.
+- Full CLI suite passed: 81 test files, 1788 tests.
