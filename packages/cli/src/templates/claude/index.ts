@@ -13,6 +13,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { DEFAULT_LANGUAGE, type SupportedLanguage } from "../../utils/i18n.js";
+import { selectLocalizedTemplateFiles } from "../template-utils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -41,19 +43,15 @@ export interface SettingsTemplate {
   content: string;
 }
 
-export function getAllAgents(): AgentTemplate[] {
-  const agents: AgentTemplate[] = [];
-  const files = listFiles("agents");
-
-  for (const file of files) {
-    if (file.endsWith(".md")) {
-      const name = file.replace(".md", "");
-      const content = readTemplate(`agents/${file}`);
-      agents.push({ name, content });
-    }
-  }
-
-  return agents;
+export function getAllAgents(
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): AgentTemplate[] {
+  return selectLocalizedTemplateFiles(listFiles("agents"), ".md", language).map(
+    ({ logicalFile, sourceFile }) => ({
+      name: logicalFile.slice(0, -".md".length),
+      content: readTemplate(`agents/${sourceFile}`),
+    }),
+  );
 }
 
 export function getSettingsTemplate(): SettingsTemplate {

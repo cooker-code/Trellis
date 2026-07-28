@@ -14,6 +14,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from .i18n import t
 from .paths import (
     DIR_WORKFLOW,
     DIR_WORKSPACE,
@@ -46,7 +47,7 @@ def init_developer(name: str, repo_root: Path | None = None) -> bool:
         True on success, False on error.
     """
     if not name:
-        print("Error: developer name is required", file=sys.stderr)
+        print(t("developer.name_required"), file=sys.stderr)
         return False
 
     if repo_root is None:
@@ -63,14 +64,14 @@ def init_developer(name: str, repo_root: Path | None = None) -> bool:
             encoding="utf-8"
         )
     except (OSError, IOError) as e:
-        print(f"Error: Failed to create .developer file: {e}", file=sys.stderr)
+        print(t("developer.file_create_failed", error=e), file=sys.stderr)
         return False
 
     # Create workspace directory structure
     try:
         workspace_dir.mkdir(parents=True, exist_ok=True)
     except (OSError, IOError) as e:
-        print(f"Error: Failed to create workspace directory: {e}", file=sys.stderr)
+        print(t("developer.workspace_create_failed", error=e), file=sys.stderr)
         return False
 
     # Create initial journal file
@@ -88,7 +89,7 @@ def init_developer(name: str, repo_root: Path | None = None) -> bool:
         try:
             journal_file.write_text(journal_content, encoding="utf-8")
         except (OSError, IOError) as e:
-            print(f"Error: Failed to create journal file: {e}", file=sys.stderr)
+            print(t("developer.journal_create_failed", error=e), file=sys.stderr)
             return False
 
     # Create index.md with markers for auto-update
@@ -138,12 +139,12 @@ def init_developer(name: str, repo_root: Path | None = None) -> bool:
         try:
             index_file.write_text(index_content, encoding="utf-8")
         except (OSError, IOError) as e:
-            print(f"Error: Failed to create index.md: {e}", file=sys.stderr)
+            print(t("developer.index_create_failed", error=e), file=sys.stderr)
             return False
 
-    print(f"Developer initialized: {name}")
-    print(f"  .developer file: {dev_file}")
-    print(f"  Workspace dir: {workspace_dir}")
+    print(t("developer.initialized", name=name))
+    print(t("developer.file_path", path=dev_file))
+    print(t("developer.workspace_path", path=workspace_dir))
 
     return True
 
@@ -158,8 +159,8 @@ def ensure_developer(repo_root: Path | None = None) -> None:
         repo_root = get_repo_root()
 
     if not check_developer(repo_root):
-        print("Error: Developer not initialized.", file=sys.stderr)
-        print(f"Run: python3 ./{DIR_WORKFLOW}/scripts/init_developer.py <your-name>", file=sys.stderr)
+        print(t("developer.not_initialized_error"), file=sys.stderr)
+        print(t("developer.initialize_hint", workflow=DIR_WORKFLOW), file=sys.stderr)
         sys.exit(1)
 
 
@@ -175,11 +176,11 @@ def show_developer_info(repo_root: Path | None = None) -> None:
     developer = get_developer(repo_root)
 
     if not developer:
-        print("Developer: (not initialized)")
+        print(t("developer.info_not_initialized"))
     else:
-        print(f"Developer: {developer}")
-        print(f"Workspace: {DIR_WORKFLOW}/{DIR_WORKSPACE}/{developer}/")
-        print(f"Tasks: {DIR_WORKFLOW}/{DIR_TASKS}/")
+        print(t("developer.info_name", name=developer))
+        print(t("developer.info_workspace", workflow=DIR_WORKFLOW, workspace=DIR_WORKSPACE, developer=developer))
+        print(t("developer.info_tasks", workflow=DIR_WORKFLOW, tasks=DIR_TASKS))
 
 
 # =============================================================================

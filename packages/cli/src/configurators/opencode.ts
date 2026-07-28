@@ -4,6 +4,8 @@ import { AI_TOOLS } from "../types/ai-tools.js";
 import { getOpenCodeTemplatePath } from "../templates/extract.js";
 import { ensureDir, writeFile } from "../utils/file-writer.js";
 import { toPosix } from "../utils/posix.js";
+import { DEFAULT_LANGUAGE, type SupportedLanguage } from "../utils/i18n.js";
+import { selectLocalizedTemplateFiles } from "../templates/template-utils.js";
 import {
   collectSkillTemplates,
   replacePythonCommandLiterals,
@@ -44,28 +46,49 @@ function shouldExclude(filename: string): boolean {
  * always agree on the exact file set. `commands/` is handled separately (sourced
  * from common template context, not from this directory tree).
  */
-function walkOpenCodeTemplateDir(): Map<string, string> {
+function walkOpenCodeTemplateDir(
+  language: SupportedLanguage,
+): Map<string, string> {
   const files = new Map<string, string>();
   const sourcePath = getOpenCodeTemplatePath();
 
   function walk(relDir: string): void {
     const absDir = path.join(sourcePath, relDir);
-    for (const entry of readdirSync(absDir)) {
+    const entries = readdirSync(absDir).sort();
+    const localizedAgents =
+      toPosix(relDir) === "agents"
+        ? new Map(
+            selectLocalizedTemplateFiles(entries, ".md", language).map(
+              ({ logicalFile, sourceFile }) => [sourceFile, logicalFile],
+            ),
+          )
+        : null;
+
+    for (const entry of entries) {
       if (shouldExclude(entry)) continue;
       const absEntry = path.join(absDir, entry);
-      const relEntry = relDir ? path.join(relDir, entry) : entry;
+      const sourceRelEntry = relDir ? path.join(relDir, entry) : entry;
       const stat = statSync(absEntry);
       if (stat.isDirectory()) {
         // Skip commands/ — that's sourced from common/ templates, not the
         // opencode/ dir. Including both paths would double-write.
-        if (relEntry === "commands") continue;
-        walk(relEntry);
+        if (sourceRelEntry === "commands") continue;
+        walk(sourceRelEntry);
       } else {
+        let logicalEntry = entry;
+        if (localizedAgents && entry.endsWith(".md")) {
+          const selectedLogicalEntry = localizedAgents.get(entry);
+          if (!selectedLogicalEntry) continue;
+          logicalEntry = selectedLogicalEntry;
+        }
+        const logicalRelEntry = relDir
+          ? path.join(relDir, logicalEntry)
+          : logicalEntry;
         const content = readFileSync(absEntry, "utf-8");
         // Map keys are logical paths used as cross-platform hash keys / lookup
         // keys downstream. Always POSIX, regardless of host OS.
         files.set(
-          toPosix(path.join(".opencode", relEntry)),
+          toPosix(path.join(".opencode", logicalRelEntry)),
           replacePythonCommandLiterals(content),
         );
       }
@@ -83,16 +106,18 @@ function walkOpenCodeTemplateDir(): Map<string, string> {
  * `Map<relPath, content>`. If they drift, update will spuriously flag newly
  * init'd files as modifications on the next run.
  */
-export function collectOpenCodeTemplates(): Map<string, string> {
-  const files = walkOpenCodeTemplateDir();
+export function collectOpenCodeTemplates(
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): Map<string, string> {
+  const files = walkOpenCodeTemplateDir(language);
   const ctx = AI_TOOLS.opencode.templateContext;
-  for (const cmd of resolveCommands(ctx)) {
+  for (const cmd of resolveCommands(ctx, language)) {
     files.set(`.opencode/commands/trellis/${cmd.name}.md`, cmd.content);
   }
   for (const [filePath, content] of collectSkillTemplates(
     ".opencode/skills",
-    resolveSkills(ctx),
-    resolveBundledSkills(ctx),
+    resolveSkills(ctx, language),
+    resolveBundledSkills(ctx, language),
   )) {
     files.set(filePath, content);
   }
@@ -103,8 +128,11 @@ export function collectOpenCodeTemplates(): Map<string, string> {
  * Configure OpenCode at init time by writing the same file set enumerated
  * by `collectOpenCodeTemplates`.
  */
-export async function configureOpenCode(cwd: string): Promise<void> {
-  for (const [relPath, content] of collectOpenCodeTemplates()) {
+export async function configureOpenCode(
+  cwd: string,
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): Promise<void> {
+  for (const [relPath, content] of collectOpenCodeTemplates(language)) {
     const absPath = path.join(cwd, relPath);
     ensureDir(path.dirname(absPath));
     await writeFile(absPath, content);

@@ -1,0 +1,17 @@
+{"file":".trellis/spec/cli/backend/index.md","reason":"CLI/backend pre-development checklist and relevant spec routing."}
+{"file":".trellis/spec/cli/backend/directory-structure.md","reason":"Parallel-suffix source selection, English canonical files, fallback, and unsuffixed hash-path contract."}
+{"file":".trellis/spec/cli/backend/configurator-shared.md","reason":"Shared resolver, wrapper, prelude, neutral Agent Skills, and init/update byte-parity invariants."}
+{"file":".trellis/spec/cli/backend/platform-integration.md","reason":"All platform agent formats, capability classes, configurator paths, and required regression contracts."}
+{"file":".trellis/spec/cli/backend/commands-update.md","reason":"Update collection, user-edit protection, hash refresh, and idempotency behavior."}
+{"file":".trellis/spec/cli/backend/quality-guidelines.md","reason":"Strict TypeScript, data-driven platform changes, and multi-entry-path audit rules."}
+{"file":".trellis/spec/cli/unit-test/index.md","reason":"Package test quality gate and validation commands."}
+{"file":".trellis/spec/cli/unit-test/conventions.md","reason":"Dynamic inventories, exact assertions, env isolation, and non-tautological regression tests."}
+{"file":".trellis/spec/cli/unit-test/integration-patterns.md","reason":"Real-filesystem init/update/hash integration patterns."}
+{"file":".trellis/spec/guides/cross-platform-thinking-guide.md","reason":"Exhaustive platform/path/encoding audit checklist."}
+{"file":".trellis/spec/guides/code-reuse-thinking-guide.md","reason":"Avoid divergent locale selectors and init/update aggregation mechanisms."}
+{"file":".trellis/tasks/05-20-trellis-i18n-chinese-support/research/sync-call-chain.md","reason":"Existing init/update source-selection call-chain and common/template-utils hazard research."}
+{"file":".trellis/tasks/05-20-trellis-i18n-chinese-support/research/template-hashes.md","reason":"Locale-transparent landed-path/hash contract and language-switch behavior."}
+{"file":".trellis/tasks/07-27-i18n-common-skills-pr2/research/common-aggregation-and-locale-propagation.md","reason":"PR2 source selector, explicit locale propagation, caches, descriptions, and prelude design."}
+{"file":".trellis/tasks/07-27-i18n-common-skills-pr2/research/platform-agent-format-and-configurator-matrix.md","reason":"Complete 11-platform agent format/loader/writer/collector matrix and translation invariants."}
+{"file":".trellis/tasks/07-27-i18n-common-skills-pr2/research/init-update-byte-parity-and-test-plan.md","reason":"Full unit/integration/hash/build test matrix for both locales."}
+{"file":".trellis/tasks/07-27-i18n-common-skills-pr2/research/pr-boundaries-and-concurrency.md","reason":"PR1-B/PR2/PR3 ownership, overlap, merge order, and safe concurrency boundaries."}

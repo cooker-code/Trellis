@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 
 from .git import run_git
+from .i18n import set_locale, t
 from .session_context import (
     get_context_json,
     get_context_text,
@@ -47,27 +48,28 @@ def main() -> None:
     """CLI entry point."""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Get Session Context for AI Agent")
+    set_locale()
+    parser = argparse.ArgumentParser(description=t("context.arg_description"))
     parser.add_argument(
         "--json",
         "-j",
         action="store_true",
-        help="Output in JSON format (works with any --mode)",
+        help=t("context.arg_json"),
     )
     parser.add_argument(
         "--mode",
         "-m",
         choices=["default", "record", "packages", "phase"],
         default="default",
-        help="Output mode: default (full context), record (for record-session), packages (package info only), phase (workflow step extraction)",
+        help=t("context.arg_mode"),
     )
     parser.add_argument(
         "--step",
-        help="Step id for --mode phase, e.g. 1.1, 2.2. Omit to get the Phase Index.",
+        help=t("context.arg_step"),
     )
     parser.add_argument(
         "--platform",
-        help="Platform name for --mode phase, e.g. cursor, claude-code. Filters platform-tagged blocks.",
+        help=t("context.arg_platform"),
     )
 
     args = parser.parse_args()
@@ -86,9 +88,9 @@ def main() -> None:
         content = get_step(args.step) if args.step else get_phase_index()
         if not content.strip():
             if args.step:
-                parser.exit(2, f"Step not found: {args.step}\n")
+                parser.exit(2, t("context.step_not_found", step=args.step) + "\n")
             else:
-                parser.exit(2, "Phase Index section not found in workflow.md\n")
+                parser.exit(2, t("context.phase_index_not_found") + "\n")
         if args.platform:
             effective = resolve_effective_platform(
                 args.platform, read_trellis_config()

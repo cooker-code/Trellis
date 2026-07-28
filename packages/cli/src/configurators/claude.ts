@@ -1,6 +1,8 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { AI_TOOLS } from "../types/ai-tools.js";
+import { DEFAULT_LANGUAGE } from "../utils/i18n.js";
+import { getAllAgents } from "../templates/claude/index.js";
 import { getClaudeTemplatePath } from "../templates/extract.js";
 import { getStatuslineHook } from "../templates/claude/index.js";
 import { ensureDir, writeFile } from "../utils/file-writer.js";
@@ -9,6 +11,7 @@ import {
   resolveCommands,
   resolveSkills,
   resolveBundledSkills,
+  writeAgents,
   writeSkills,
   writeSharedHooks,
   replacePythonCommandLiterals,
@@ -108,14 +111,16 @@ export async function configureClaude(
   const destPath = path.join(cwd, ".claude");
   const ctx = AI_TOOLS["claude-code"].templateContext;
   const withStatusline = options?.withStatusline === true;
+  const language = options?.language ?? DEFAULT_LANGUAGE;
 
   // Copy platform-specific files (agents, settings) — hooks come from shared-hooks
   await copyDirFiltered(
     sourcePath,
     destPath,
-    ["commands", "hooks"],
+    ["agents", "commands", "hooks"],
     withStatusline,
   );
+  await writeAgents(path.join(destPath, "agents"), getAllAgents(language));
 
   // Shared hook scripts (same source as 7 other platforms)
   await writeSharedHooks(path.join(destPath, "hooks"), "claude");
@@ -132,14 +137,14 @@ export async function configureClaude(
   // start + finish-work as slash commands
   const commandsDir = path.join(destPath, "commands", "trellis");
   ensureDir(commandsDir);
-  for (const cmd of resolveCommands(ctx)) {
+  for (const cmd of resolveCommands(ctx, language)) {
     await writeFile(path.join(commandsDir, `${cmd.name}.md`), cmd.content);
   }
 
   // Auto-trigger workflow skills + multi-file built-in skills.
   await writeSkills(
     path.join(destPath, "skills"),
-    resolveSkills(ctx),
-    resolveBundledSkills(ctx),
+    resolveSkills(ctx, language),
+    resolveBundledSkills(ctx, language),
   );
 }

@@ -18,17 +18,22 @@ max_journal_lines: 2000
 # Language
 #-------------------------------------------------------------------------------
 
-# Source-template language used by `trellis init` / `trellis update` to pick
-# which version of workflow.md / agents/*.md / scripts to materialize into
-# .trellis/. Switching language requires re-running the sync command;
-# runtime files are NOT live-translated.
+# Language used by Trellis-managed templates and core Python user messages.
+#
+# Managed template files change only when an applicable `trellis init`,
+# re-init, or `trellis update` flow materializes them. Changing this value
+# does not rewrite existing workflow / agent / command / skill content by
+# itself; rerun the applicable command. Blank spec templates use the selected
+# language only when newly generated; `trellis update` does not rewrite the
+# user-owned .trellis/spec/ directory.
+#
+# Installed Python scripts (task.py / add_session.py / init_developer.py …)
+# resolve this value at each process start for user-facing messages. After
+# changing `language`, rerun the Python command directly; `trellis update`
+# is not required for message selection.
 #
 # Accepts: en (default) / zh
-# Falls back to en when a translated *.zh.* template is missing.
-#
-# Python scripts (task.py / add_session.py / init_developer.py …) read this
-# value once at startup to choose the i18n string dictionary used by their
-# user-facing prints. Change effect: edit + rerun `trellis update`.
+# Falls back to en when a translated *.zh.* template or Python string is missing.
 #
 # language: en
 

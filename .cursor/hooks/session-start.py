@@ -678,6 +678,46 @@ def _extract_range(content: str, start_header: str, end_header: str) -> str:
     return "\n".join(lines[start:end]).rstrip()
 
 
+def _extract_phase_index(content: str) -> str:
+    """Extract the compact Phase Index from English or localized workflow."""
+    english = _extract_range(content, "Phase Index", "Phase 1: Plan")
+    if english:
+        return english
+
+    lines = content.splitlines()
+    no_task_index = next(
+        (
+            i
+            for i, line in enumerate(lines)
+            if line.strip() == "[workflow-state:no_task]"
+        ),
+        None,
+    )
+    if no_task_index is None:
+        return ""
+
+    start = next(
+        (
+            i
+            for i in range(no_task_index - 1, -1, -1)
+            if lines[i].strip().startswith("## ")
+        ),
+        None,
+    )
+    if start is None:
+        return ""
+
+    end = next(
+        (
+            i
+            for i in range(start + 1, len(lines))
+            if lines[i].strip().startswith("## ")
+        ),
+        len(lines),
+    )
+    return "\n".join(lines[start:end]).rstrip()
+
+
 _BREADCRUMB_TAG_RE = re.compile(
     r"\[workflow-state:([A-Za-z0-9_-]+)\]\s*\n.*?\n\s*\[/workflow-state:\1\]",
     re.DOTALL,
@@ -711,7 +751,7 @@ def _build_workflow_overview(workflow_path: Path) -> str:
         "",
     ]
 
-    phases = _extract_range(content, "Phase Index", "Phase 1: Plan")
+    phases = _extract_phase_index(content)
     if phases:
         out_lines.append(_strip_breadcrumb_tag_blocks(phases).rstrip())
 

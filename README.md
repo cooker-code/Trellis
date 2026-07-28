@@ -66,6 +66,19 @@ trellis init --cursor --opencode --codex -u your-name
 
 See the [Quick Start](https://docs.trytrellis.app/start/install-and-first-task) and [Supported Platforms](https://docs.trytrellis.app/advanced/multi-platform) guides for setup details.
 
+## Workflow Language
+
+Trellis's native content is available in English (default) and Simplified Chinese: workflow and platform prompts, bundled multi-file skills and references, default spec templates, and user-facing messages from core Python scripts. Choose Chinese for one init/update run with `--language zh`:
+
+```bash
+trellis init --language zh -u your-name
+trellis update --language zh
+```
+
+To persist the choice, add the top-level setting `language: zh` to `.trellis/config.yaml`, then run `trellis update`. Switch back with `language: en`. Generated paths and commands stay unchanged; if a localized template is missing, Trellis silently falls back to English.
+
+The v0.6 beta Chinese baseline is shipped. Localized sidecars materialize at the same locale-neutral paths, while command names, JSON contracts, task status values, and raw path output remain stable.
+
 ## How to Use
 
 The workflow is simple:

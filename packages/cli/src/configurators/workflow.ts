@@ -16,25 +16,7 @@ import {
 // Import markdown templates
 import {
   agentProgressIndexContent,
-  // Backend structure (multi-doc)
-  backendIndexContent,
-  backendDirectoryStructureContent,
-  backendDatabaseGuidelinesContent,
-  backendLoggingGuidelinesContent,
-  backendQualityGuidelinesContent,
-  backendErrorHandlingContent,
-  // Frontend structure (multi-doc)
-  frontendIndexContent,
-  frontendDirectoryStructureContent,
-  frontendTypeSafetyContent,
-  frontendHookGuidelinesContent,
-  frontendComponentGuidelinesContent,
-  frontendQualityGuidelinesContent,
-  frontendStateManagementContent,
-  // Guides structure
-  guidesIndexContent,
-  guidesCrossLayerThinkingGuideContent,
-  guidesCodeReuseThinkingGuideContent,
+  getSpecTemplateContent,
 } from "../templates/markdown/index.js";
 
 import { writeFile, ensureDir } from "../utils/file-writer.js";
@@ -47,7 +29,7 @@ import {
 
 interface DocDefinition {
   name: string;
-  content: string;
+  source: string;
 }
 
 /**
@@ -195,65 +177,98 @@ export async function createWorkflowStructure(
   // These are NOT dogfooded - they are generic templates for new projects
   if (packages && packages.length > 0) {
     // Monorepo mode: create per-package spec directories
-    await createSpecTemplates(cwd, projectType, packages, remoteSpecPackages);
+    await createSpecTemplates(
+      cwd,
+      projectType,
+      language,
+      packages,
+      remoteSpecPackages,
+    );
   } else if (!skipSpecTemplates) {
     // Single-repo mode: create global spec (skip if using remote template)
-    await createSpecTemplates(cwd, projectType);
+    await createSpecTemplates(cwd, projectType, language);
   }
 }
 
 /**
  * Write backend spec docs into a target spec directory.
  */
-async function writeBackendDocs(specBase: string): Promise<void> {
-  const backendDir = path.join(specBase, "backend");
-  ensureDir(backendDir);
+async function writeDocs(
+  targetDir: string,
+  docs: DocDefinition[],
+  language: string,
+): Promise<void> {
+  ensureDir(targetDir);
+  for (const doc of docs) {
+    await writeFile(
+      path.join(targetDir, doc.name),
+      getSpecTemplateContent(doc.source, language),
+    );
+  }
+}
+
+async function writeBackendDocs(
+  specBase: string,
+  language: string,
+): Promise<void> {
   const docs: DocDefinition[] = [
-    { name: "index.md", content: backendIndexContent },
+    { name: "index.md", source: "spec/backend/index.md.txt" },
     {
       name: "directory-structure.md",
-      content: backendDirectoryStructureContent,
+      source: "spec/backend/directory-structure.md.txt",
     },
     {
       name: "database-guidelines.md",
-      content: backendDatabaseGuidelinesContent,
+      source: "spec/backend/database-guidelines.md.txt",
     },
-    { name: "logging-guidelines.md", content: backendLoggingGuidelinesContent },
-    { name: "quality-guidelines.md", content: backendQualityGuidelinesContent },
-    { name: "error-handling.md", content: backendErrorHandlingContent },
+    {
+      name: "logging-guidelines.md",
+      source: "spec/backend/logging-guidelines.md.txt",
+    },
+    {
+      name: "quality-guidelines.md",
+      source: "spec/backend/quality-guidelines.md.txt",
+    },
+    {
+      name: "error-handling.md",
+      source: "spec/backend/error-handling.md.txt",
+    },
   ];
-  for (const doc of docs) {
-    await writeFile(path.join(backendDir, doc.name), doc.content);
-  }
+  await writeDocs(path.join(specBase, "backend"), docs, language);
 }
 
 /**
  * Write frontend spec docs into a target spec directory.
  */
-async function writeFrontendDocs(specBase: string): Promise<void> {
-  const frontendDir = path.join(specBase, "frontend");
-  ensureDir(frontendDir);
+async function writeFrontendDocs(
+  specBase: string,
+  language: string,
+): Promise<void> {
   const docs: DocDefinition[] = [
-    { name: "index.md", content: frontendIndexContent },
+    { name: "index.md", source: "spec/frontend/index.md.txt" },
     {
       name: "directory-structure.md",
-      content: frontendDirectoryStructureContent,
+      source: "spec/frontend/directory-structure.md.txt",
     },
-    { name: "type-safety.md", content: frontendTypeSafetyContent },
-    { name: "hook-guidelines.md", content: frontendHookGuidelinesContent },
+    { name: "type-safety.md", source: "spec/frontend/type-safety.md.txt" },
+    {
+      name: "hook-guidelines.md",
+      source: "spec/frontend/hook-guidelines.md.txt",
+    },
     {
       name: "component-guidelines.md",
-      content: frontendComponentGuidelinesContent,
+      source: "spec/frontend/component-guidelines.md.txt",
     },
     {
       name: "quality-guidelines.md",
-      content: frontendQualityGuidelinesContent,
+      source: "spec/frontend/quality-guidelines.md.txt",
     },
-    { name: "state-management.md", content: frontendStateManagementContent },
+    {
+      name: "state-management.md",
+      source: "spec/frontend/state-management.md.txt",
+    },
   ];
-  for (const doc of docs) {
-    await writeFile(path.join(frontendDir, doc.name), doc.content);
-  }
+  await writeDocs(path.join(specBase, "frontend"), docs, language);
 }
 
 /**
@@ -262,18 +277,20 @@ async function writeFrontendDocs(specBase: string): Promise<void> {
 async function writeSpecForType(
   specBase: string,
   projectType: ProjectType,
+  language: string,
 ): Promise<void> {
   if (projectType !== "frontend") {
-    await writeBackendDocs(specBase);
+    await writeBackendDocs(specBase, language);
   }
   if (projectType !== "backend") {
-    await writeFrontendDocs(specBase);
+    await writeFrontendDocs(specBase, language);
   }
 }
 
 async function createSpecTemplates(
   cwd: string,
   projectType: ProjectType,
+  language: string,
   packages?: DetectedPackage[],
   remoteSpecPackages?: Set<string>,
 ): Promise<void> {
@@ -284,19 +301,17 @@ async function createSpecTemplates(
   const guidesDir = path.join(cwd, `${PATHS.SPEC}/guides`);
   ensureDir(guidesDir);
   const guidesDocs: DocDefinition[] = [
-    { name: "index.md", content: guidesIndexContent },
+    { name: "index.md", source: "spec/guides/index.md.txt" },
     {
       name: "cross-layer-thinking-guide.md",
-      content: guidesCrossLayerThinkingGuideContent,
+      source: "spec/guides/cross-layer-thinking-guide.md.txt",
     },
     {
       name: "code-reuse-thinking-guide.md",
-      content: guidesCodeReuseThinkingGuideContent,
+      source: "spec/guides/code-reuse-thinking-guide.md.txt",
     },
   ];
-  for (const doc of guidesDocs) {
-    await writeFile(path.join(guidesDir, doc.name), doc.content);
-  }
+  await writeDocs(guidesDir, guidesDocs, language);
 
   if (packages && packages.length > 0) {
     // Monorepo mode: create spec/<name>/ for each package
@@ -306,10 +321,10 @@ async function createSpecTemplates(
       const pkgSpecBase = path.join(cwd, `${PATHS.SPEC}/${dirName}`);
       ensureDir(pkgSpecBase);
       const pkgType = pkg.type === "unknown" ? "fullstack" : pkg.type;
-      await writeSpecForType(pkgSpecBase, pkgType);
+      await writeSpecForType(pkgSpecBase, pkgType, language);
     }
   } else {
     // Single-repo mode
-    await writeSpecForType(path.join(cwd, PATHS.SPEC), projectType);
+    await writeSpecForType(path.join(cwd, PATHS.SPEC), projectType, language);
   }
 }

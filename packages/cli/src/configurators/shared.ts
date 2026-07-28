@@ -6,6 +6,7 @@
  */
 
 import type { TemplateContext } from "../types/ai-tools.js";
+import { DEFAULT_LANGUAGE, type SupportedLanguage } from "../utils/i18n.js";
 
 /**
  * Per-platform configure options threaded from `trellis init` flags.
@@ -13,6 +14,9 @@ import type { TemplateContext } from "../types/ai-tools.js";
  * a circular import.
  */
 export interface PlatformConfigureOptions {
+  /** Locale used to select translated source templates. */
+  language?: SupportedLanguage;
+
   /**
    * Claude Code only: install the opt-in Trellis statusLine
    * (`trellis init --with-statusline`). Off by default — see
@@ -275,26 +279,36 @@ export function wrapWithSkillFrontmatter(
 }
 
 /**
- * One-line blurbs shown in a `/` command palette — kept separate from
- * SKILL_DESCRIPTIONS, which is long prose aimed at the skill matcher.
+ * Locale-aware skill wrapper used by generated platform output. The legacy
+ * English-only wrapper above remains stable for external callers while all
+ * Trellis resolvers use parallel description template metadata.
  */
-const COMMAND_DESCRIPTIONS: Record<string, string> = {
-  start: "Initialize a Trellis development session.",
-  continue: "Resume work on the current task at the correct phase.",
-  "finish-work":
-    "Wrap up the current session: quality gate, commit reminder, archive, journal.",
-};
+function wrapWithLocalizedSkillFrontmatter(
+  name: string,
+  content: string,
+  language: SupportedLanguage,
+): string {
+  const baseName = name.replace(/^trellis-/, "");
+  const description = getSkillDescription(baseName, language);
+  if (!description) {
+    throw new Error(
+      `Missing skill description for "${baseName}" in common/descriptions.json.`,
+    );
+  }
+  return `---\nname: ${name}\ndescription: "${description}"\n---\n\n${content}`;
+}
 
-/** Wrap resolved command content with YAML frontmatter (name + description). */
+/** Wrap resolved command content with localized YAML frontmatter. */
 export function wrapWithCommandFrontmatter(
   name: string,
   content: string,
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
 ): string {
   const baseName = name.replace(/^trellis-/, "");
-  const description = COMMAND_DESCRIPTIONS[baseName];
+  const description = getCommandDescription(baseName, language);
   if (!description) {
     throw new Error(
-      `Missing command description for "${baseName}". Add it to COMMAND_DESCRIPTIONS in shared.ts.`,
+      `Missing command description for "${baseName}" in common/descriptions.json.`,
     );
   }
   // JSON.stringify produces a double-quoted YAML scalar, which is safe even
@@ -322,10 +336,10 @@ const COMMAND_ARGUMENT_HINTS: Record<string, string> = {
  */
 export function wrapWithOmpFrontmatter(name: string, content: string): string {
   const baseName = name.replace(/^trellis-/, "");
-  const description = COMMAND_DESCRIPTIONS[baseName];
+  const description = getCommandDescription(baseName);
   if (!description) {
     throw new Error(
-      `Missing command description for "${baseName}". Add it to COMMAND_DESCRIPTIONS in shared.ts.`,
+      `Missing command description for "${baseName}" in common/descriptions.json.`,
     );
   }
   // Strip leading H1 + blank line from template body
@@ -351,7 +365,10 @@ import { ensureDir, writeFile } from "../utils/file-writer.js";
 import {
   type CommonTemplate,
   getBundledSkillTemplates,
+  getCommandDescription,
   getCommandTemplates,
+  getPullBasedPreludeTemplate,
+  getSkillDescription,
   getSkillTemplates,
 } from "../templates/common/index.js";
 
@@ -401,16 +418,20 @@ function filterCommands(
  * `start` is filtered out on agent-capable platforms — the session-start hook
  * injects the workflow overview instead.
  */
-export function resolveAllAsSkills(ctx: TemplateContext): ResolvedTemplate[] {
+export function resolveAllAsSkills(
+  ctx: TemplateContext,
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): ResolvedTemplate[] {
   const templates = [
-    ...filterCommands(getCommandTemplates(), ctx),
-    ...getSkillTemplates(),
+    ...filterCommands(getCommandTemplates(language), ctx),
+    ...getSkillTemplates(language),
   ];
   return templates.map((tmpl) => ({
     name: `trellis-${tmpl.name}`,
-    content: wrapWithSkillFrontmatter(
+    content: wrapWithLocalizedSkillFrontmatter(
       `trellis-${tmpl.name}`,
       resolvePlaceholders(tmpl.content, ctx),
+      language,
     ),
   }));
 }
@@ -421,8 +442,11 @@ export function resolveAllAsSkills(ctx: TemplateContext): ResolvedTemplate[] {
  *
  * `start` is filtered out on agent-capable platforms.
  */
-export function resolveCommands(ctx: TemplateContext): ResolvedTemplate[] {
-  return filterCommands(getCommandTemplates(), ctx).map((tmpl) => ({
+export function resolveCommands(
+  ctx: TemplateContext,
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): ResolvedTemplate[] {
+  return filterCommands(getCommandTemplates(language), ctx).map((tmpl) => ({
     name: tmpl.name,
     content: resolvePlaceholders(tmpl.content, ctx),
   }));
@@ -432,12 +456,16 @@ export function resolveCommands(ctx: TemplateContext): ResolvedTemplate[] {
  * Resolve the auto-triggered skill templates from `common/skills/` with trellis- prefix + SKILL.md frontmatter.
  * Used by "both" platforms for the auto-triggered skills.
  */
-export function resolveSkills(ctx: TemplateContext): ResolvedTemplate[] {
-  return getSkillTemplates().map((tmpl) => ({
+export function resolveSkills(
+  ctx: TemplateContext,
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): ResolvedTemplate[] {
+  return getSkillTemplates(language).map((tmpl) => ({
     name: `trellis-${tmpl.name}`,
-    content: wrapWithSkillFrontmatter(
+    content: wrapWithLocalizedSkillFrontmatter(
       `trellis-${tmpl.name}`,
       resolvePlaceholders(tmpl.content, ctx),
+      language,
     ),
   }));
 }
@@ -449,12 +477,16 @@ export function resolveSkills(ctx: TemplateContext): ResolvedTemplate[] {
  * writes (Gemini); platform-private skill roots should keep
  * {@link resolveSkills}.
  */
-export function resolveSkillsNeutral(ctx: TemplateContext): ResolvedTemplate[] {
-  return getSkillTemplates().map((tmpl) => ({
+export function resolveSkillsNeutral(
+  ctx: TemplateContext,
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): ResolvedTemplate[] {
+  return getSkillTemplates(language).map((tmpl) => ({
     name: `trellis-${tmpl.name}`,
-    content: wrapWithSkillFrontmatter(
+    content: wrapWithLocalizedSkillFrontmatter(
       `trellis-${tmpl.name}`,
       resolvePlaceholdersNeutral(tmpl.content, ctx),
+      language,
     ),
   }));
 }
@@ -468,16 +500,18 @@ export function resolveSkillsNeutral(ctx: TemplateContext): ResolvedTemplate[] {
  */
 export function resolveAllAsSkillsNeutral(
   ctx: TemplateContext,
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
 ): ResolvedTemplate[] {
   const templates = [
-    ...filterCommands(getCommandTemplates(), ctx),
-    ...getSkillTemplates(),
+    ...filterCommands(getCommandTemplates(language), ctx),
+    ...getSkillTemplates(language),
   ];
   return templates.map((tmpl) => ({
     name: `trellis-${tmpl.name}`,
-    content: wrapWithSkillFrontmatter(
+    content: wrapWithLocalizedSkillFrontmatter(
       `trellis-${tmpl.name}`,
       resolvePlaceholdersNeutral(tmpl.content, ctx),
+      language,
     ),
   }));
 }
@@ -491,8 +525,9 @@ export function resolveAllAsSkillsNeutral(
  */
 export function resolveBundledSkills(
   ctx: TemplateContext,
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
 ): ResolvedSkillFile[] {
-  return getBundledSkillTemplates().flatMap((skill) =>
+  return getBundledSkillTemplates(language).flatMap((skill) =>
     skill.files.map((file) => ({
       relativePath: `${skill.name}/${file.relativePath}`,
       content: resolvePlaceholders(file.content, ctx),
@@ -589,45 +624,26 @@ export async function writeSharedHooks(
 export type SubAgentType = "implement" | "check";
 
 /** Build the standard "load Trellis context first" prelude block. */
-export function buildPullBasedPrelude(agentType: SubAgentType): string {
+export function buildPullBasedPrelude(
+  agentType: SubAgentType,
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): string {
   // JSONL filenames stay as implement.jsonl / check.jsonl — they are internal
   // context buckets keyed by role (not by platform-visible agent name).
   const jsonl = agentType === "check" ? "check.jsonl" : "implement.jsonl";
-
-  return replacePythonCommandLiterals(`## Required: Load Trellis Context First
-
-This platform does NOT auto-inject task context via hook. Before doing anything else, you MUST load context yourself.
-
-### Step 1: Find the active task path
-
-Try in order — stop at the first one that yields a task path:
-
-1. **Look at the dispatch prompt** you received from the main agent. If its first line is \`Active task: <path>\` (e.g. \`Active task: .trellis/tasks/04-17-foo\`), use that path. The main agent is required to include this line on class-2 platforms.
-2. **Run** \`python3 ./.trellis/scripts/task.py current --source\` and read the \`Current task:\` line.
-3. **If both fail** (no \`Active task:\` line in the prompt and \`task.py current\` returns no task), ask the user which task to work on; do NOT guess.
-
-### Step 2: Load task context from the resolved path
-
-1. Read \`<task-path>/${jsonl}\` — JSONL list of spec/research files relevant to this agent.
-2. For each entry in the JSONL, Read its \`file\` path — these are the specs and research notes you must follow.
-   **Skip rows without a \`"file"\` field** (e.g. \`{"_example": "..."}\` seed rows left over from \`task.py create\` before the curator ran).
-3. Read the task's \`prd.md\` (requirements), then \`design.md\` if present (technical design), then \`implement.md\` if present (execution plan).
-
-If \`${jsonl}\` has no curated entries (only a seed row, or the file is missing), fall back to: read the task artifacts, list available specs with \`python3 ./.trellis/scripts/get_context.py --mode packages\`, and pick the specs that match the task domain yourself. Do NOT block on the missing jsonl — lightweight tasks may be PRD-only, while complex tasks may also include \`design.md\` and \`implement.md\`.
-
-If the resolved task path has no \`prd.md\`, ask the user what to work on; do NOT proceed without context.
-
----
-
-`);
+  const template = getPullBasedPreludeTemplate(language);
+  return replacePythonCommandLiterals(
+    template.replaceAll("{{JSONL_FILE}}", jsonl),
+  );
 }
 
 /** Insert prelude into a markdown agent definition (after YAML frontmatter). */
 export function injectPullBasedPreludeMarkdown(
   content: string,
   agentType: SubAgentType,
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
 ): string {
-  const prelude = buildPullBasedPrelude(agentType);
+  const prelude = buildPullBasedPrelude(agentType, language);
   const sections = splitMarkdownFrontmatter(content);
 
   if (!sections) {
@@ -643,8 +659,9 @@ export function injectPullBasedPreludeMarkdown(
 export function injectPullBasedPreludeToml(
   content: string,
   agentType: SubAgentType,
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
 ): string {
-  const prelude = buildPullBasedPrelude(agentType);
+  const prelude = buildPullBasedPrelude(agentType, language);
   // Match: developer_instructions = """  followed by newline
   const re = /(developer_instructions\s*=\s*""")(\r?\n)/;
   if (!re.test(content)) {
@@ -695,13 +712,14 @@ function splitMarkdownFrontmatter(
 
 export function applyPullBasedPreludeMarkdown(
   agents: readonly AgentContent[],
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
 ): AgentContent[] {
   return agents.map((a) => {
     const t = detectSubAgentType(a.name);
     if (!t) return { ...a };
     return {
       ...a,
-      content: injectPullBasedPreludeMarkdown(a.content, t),
+      content: injectPullBasedPreludeMarkdown(a.content, t, language),
     };
   });
 }
@@ -781,13 +799,14 @@ export function normalizeCopilotMarkdownAgents(
 
 export function applyPullBasedPreludeToml(
   agents: readonly AgentContent[],
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
 ): AgentContent[] {
   return agents.map((a) => {
     const t = detectSubAgentType(a.name);
     if (!t) return { ...a };
     return {
       ...a,
-      content: injectPullBasedPreludeToml(a.content, t),
+      content: injectPullBasedPreludeToml(a.content, t, language),
     };
   });
 }

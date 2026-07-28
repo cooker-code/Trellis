@@ -22,6 +22,7 @@ from pathlib import Path
 from .active_task import resolve_context_key
 from .config import get_git_packages
 from .git import run_git
+from .i18n import t
 from .packages_context import get_packages_section
 from .tasks import iter_active_tasks, load_task, get_all_statuses, children_progress
 from .paths import (
@@ -211,56 +212,57 @@ def _collect_package_git_info(
 
 def _append_root_git_context(lines: list[str], root_git_info: dict) -> None:
     """Append root Git status without misleading non-Git roots."""
-    lines.append("## GIT STATUS")
+    lines.append(t("context.git_status"))
     if not root_git_info["isRepo"]:
-        lines.append("Root is not a Git repository.")
-        lines.append("Run Git commands from the package repository paths listed below.")
+        lines.append(t("context.root_not_git"))
+        lines.append(t("context.use_package_git"))
     else:
-        lines.append(f"Branch: {root_git_info['branch']}")
+        lines.append(t("context.branch", branch=root_git_info["branch"]))
         if root_git_info["isClean"]:
-            lines.append("Working directory: Clean")
+            lines.append(t("context.working_clean"))
         else:
             lines.append(
-                f"Working directory: {root_git_info['uncommittedChanges']} "
-                "uncommitted change(s)"
+                t("context.working_changes", count=root_git_info["uncommittedChanges"])
             )
             lines.append("")
-            lines.append("Changes:")
+            lines.append(t("context.changes"))
             for line in root_git_info.get("statusShort", [])[:10]:
                 lines.append(line)
     lines.append("")
 
-    lines.append("## RECENT COMMITS")
+    lines.append(t("context.recent_commits"))
     if not root_git_info["isRepo"]:
-        lines.append(
-            "Root has no Git commit history because it is not a Git repository."
-        )
+        lines.append(t("context.root_no_history"))
     elif root_git_info["recentCommits"]:
         for commit in root_git_info["recentCommits"]:
             lines.append(f"{commit['hash']} {commit['message']}")
     else:
-        lines.append("(no commits)")
+        lines.append(t("context.no_commits"))
     lines.append("")
 
 
 def _append_package_git_context(lines: list[str], package_git_info: list[dict]) -> None:
     """Append Git status and recent commits for package repositories."""
     for pkg in package_git_info:
-        lines.append(f"## GIT STATUS ({pkg['name']}: {pkg['path']})")
-        lines.append(f"Branch: {pkg['branch']}")
+        lines.append(
+            t("context.package_git_status", name=pkg["name"], path=pkg["path"])
+        )
+        lines.append(t("context.branch", branch=pkg["branch"]))
         if pkg["isClean"]:
-            lines.append("Working directory: Clean")
+            lines.append(t("context.working_clean"))
         else:
             lines.append(
-                f"Working directory: {pkg['uncommittedChanges']} uncommitted change(s)"
+                t("context.working_changes", count=pkg["uncommittedChanges"])
             )
         lines.append("")
-        lines.append(f"## RECENT COMMITS ({pkg['name']}: {pkg['path']})")
+        lines.append(
+            t("context.package_recent_commits", name=pkg["name"], path=pkg["path"])
+        )
         if pkg["recentCommits"]:
             for commit in pkg["recentCommits"]:
                 lines.append(f"{commit['hash']} {commit['message']}")
         else:
-            lines.append("(no commits)")
+            lines.append(t("context.no_commits"))
         lines.append("")
 
 
@@ -410,9 +412,10 @@ def _get_update_hint(repo_root: Path) -> str | None:
     if comparison is None or comparison >= 0:
         return None
 
-    return (
-        f"Trellis update available: {current_version} -> {latest_version}, "
-        "run trellis upgrade"
+    return t(
+        "context.update_available",
+        current=current_version,
+        latest=latest_version,
     )
 
 
@@ -518,21 +521,25 @@ def get_context_text(repo_root: Path | None = None) -> str:
 
     lines = []
     lines.append("========================================")
-    lines.append("SESSION CONTEXT")
+    lines.append(t("context.session_header"))
     lines.append("========================================")
     lines.append("")
 
     developer = get_developer(repo_root)
 
     # Developer section
-    lines.append("## DEVELOPER")
+    lines.append(t("context.developer_header"))
     if not developer:
         lines.append(
-            f"ERROR: Not initialized. Run: python3 ./{DIR_WORKFLOW}/{DIR_SCRIPTS}/init_developer.py <name>"
+            t(
+                "context.not_initialized",
+                workflow=DIR_WORKFLOW,
+                scripts=DIR_SCRIPTS,
+            )
         )
         return "\n".join(lines)
 
-    lines.append(f"Name: {developer}")
+    lines.append(t("context.name", name=developer))
     lines.append("")
 
     root_git_info = _collect_root_git_info(repo_root)
@@ -548,35 +555,40 @@ def get_context_text(repo_root: Path | None = None) -> str:
     )
 
     # Current task
-    lines.append("## CURRENT TASK")
+    lines.append(t("context.current_task_header"))
     current_task = get_current_task(repo_root)
     if current_task:
         current_task_dir = repo_root / current_task
         source_type, context_key, _ = get_current_task_source(repo_root)
-        lines.append(f"Path: {current_task}")
+        lines.append(t("context.path", path=current_task))
         lines.append(
-            f"Source: {source_type}" + (f":{context_key}" if context_key else "")
+            t(
+                "context.source",
+                source=source_type + (f":{context_key}" if context_key else ""),
+            )
         )
 
         ct = load_task(current_task_dir)
         if ct:
-            lines.append(f"Name: {ct.name}")
-            lines.append(f"Status: {ct.status}")
-            lines.append(f"Created: {ct.raw.get('createdAt', 'unknown')}")
+            lines.append(t("context.name", name=ct.name))
+            lines.append(t("context.status", status=ct.status))
+            lines.append(
+                t("context.created", date=ct.raw.get("createdAt", "unknown"))
+            )
             if ct.description:
-                lines.append(f"Description: {ct.description}")
+                lines.append(t("context.description", description=ct.description))
 
         # Check for prd.md
         prd_file = current_task_dir / "prd.md"
         if prd_file.is_file():
             lines.append("")
-            lines.append("[!] This task has prd.md - read it for task details")
+            lines.append(t("context.prd_hint"))
     else:
-        lines.append("(none)")
+        lines.append(t("context.none"))
     lines.append("")
 
     # Active tasks
-    lines.append("## ACTIVE TASKS")
+    lines.append(t("context.active_tasks_header"))
     tasks_dir = get_tasks_dir(repo_root)
     task_count = 0
 
@@ -600,36 +612,38 @@ def get_context_text(repo_root: Path | None = None) -> str:
             _print_task_tree(dir_name)
 
     if task_count == 0:
-        lines.append("(no active tasks)")
-    lines.append(f"Total: {task_count} active task(s)")
+        lines.append(t("context.no_active_tasks"))
+    lines.append(t("context.active_total", count=task_count))
     lines.append("")
 
     # My tasks
-    lines.append("## MY TASKS (Assigned to me)")
+    lines.append(t("context.my_tasks_header"))
     my_task_count = 0
 
-    for t in all_tasks.values():
-        if t.assignee == developer and t.status != "done":
-            progress = children_progress(t.children, all_statuses)
-            lines.append(f"- [{t.priority}] {t.title} ({t.status}){progress}")
+    for task in all_tasks.values():
+        if task.assignee == developer and task.status != "done":
+            progress = children_progress(task.children, all_statuses)
+            lines.append(
+                f"- [{task.priority}] {task.title} ({task.status}){progress}"
+            )
             my_task_count += 1
 
     if my_task_count == 0:
-        lines.append("(no tasks assigned to you)")
+        lines.append(t("context.no_assigned_tasks"))
     lines.append("")
 
     # Journal file
-    lines.append("## JOURNAL FILE")
+    lines.append(t("context.journal_header"))
     journal_file = get_active_journal_file(repo_root)
     if journal_file:
         journal_lines = count_lines(journal_file)
         relative = f"{DIR_WORKFLOW}/{DIR_WORKSPACE}/{developer}/{journal_file.name}"
-        lines.append(f"Active file: {relative}")
-        lines.append(f"Line count: {journal_lines} / 2000")
+        lines.append(t("context.active_file", path=relative))
+        lines.append(t("context.line_count", count=journal_lines))
         if journal_lines > 1800:
-            lines.append("[!] WARNING: Approaching 2000 line limit!")
+            lines.append(t("context.journal_limit_warning"))
     else:
-        lines.append("No journal file found")
+        lines.append(t("context.no_journal"))
     lines.append("")
 
     # Packages
@@ -639,10 +653,10 @@ def get_context_text(repo_root: Path | None = None) -> str:
         lines.append("")
 
     # Paths
-    lines.append("## PATHS")
-    lines.append(f"Workspace: {DIR_WORKFLOW}/{DIR_WORKSPACE}/{developer}/")
-    lines.append(f"Tasks: {DIR_WORKFLOW}/{DIR_TASKS}/")
-    lines.append(f"Spec: {DIR_WORKFLOW}/{DIR_SPEC}/")
+    lines.append(t("context.paths_header"))
+    lines.append(t("context.workspace_path", path=f"{DIR_WORKFLOW}/{DIR_WORKSPACE}/{developer}/"))
+    lines.append(t("context.tasks_path", path=f"{DIR_WORKFLOW}/{DIR_TASKS}/"))
+    lines.append(t("context.spec_path", path=f"{DIR_WORKFLOW}/{DIR_SPEC}/"))
     lines.append("")
 
     lines.append("========================================")
@@ -740,20 +754,24 @@ def get_context_text_record(repo_root: Path | None = None) -> str:
 
     lines: list[str] = []
     lines.append("========================================")
-    lines.append("SESSION CONTEXT (RECORD MODE)")
+    lines.append(t("context.record_header"))
     lines.append("========================================")
     lines.append("")
 
     developer = get_developer(repo_root)
     if not developer:
         lines.append(
-            f"ERROR: Not initialized. Run: python3 ./{DIR_WORKFLOW}/{DIR_SCRIPTS}/init_developer.py <name>"
+            t(
+                "context.not_initialized",
+                workflow=DIR_WORKFLOW,
+                scripts=DIR_SCRIPTS,
+            )
         )
         return "\n".join(lines)
 
     # MY ACTIVE TASKS — first and prominent
-    lines.append(f"## [!!!] MY ACTIVE TASKS (Assigned to {developer})")
-    lines.append("[!] Review whether any should be archived before recording this session.")
+    lines.append(t("context.record_my_tasks", developer=developer))
+    lines.append(t("context.record_archive_hint"))
     lines.append("")
 
     tasks_dir = get_tasks_dir(repo_root)
@@ -762,14 +780,16 @@ def get_context_text_record(repo_root: Path | None = None) -> str:
     # Single pass — collect all tasks and filter by assignee
     all_statuses = get_all_statuses(tasks_dir)
 
-    for t in iter_active_tasks(tasks_dir):
-        if t.assignee == developer:
-            progress = children_progress(t.children, all_statuses)
-            lines.append(f"- [{t.priority}] {t.title} ({t.status}){progress} — {t.dir_name}")
+    for task in iter_active_tasks(tasks_dir):
+        if task.assignee == developer:
+            progress = children_progress(task.children, all_statuses)
+            lines.append(
+                f"- [{task.priority}] {task.title} ({task.status}){progress} — {task.dir_name}"
+            )
             my_task_count += 1
 
     if my_task_count == 0:
-        lines.append("(no active tasks assigned to you)")
+        lines.append(t("context.no_active_assigned"))
     lines.append("")
 
     root_git_info = _collect_root_git_info(repo_root)
@@ -785,20 +805,23 @@ def get_context_text_record(repo_root: Path | None = None) -> str:
     )
 
     # CURRENT TASK
-    lines.append("## CURRENT TASK")
+    lines.append(t("context.current_task_header"))
     current_task = get_current_task(repo_root)
     if current_task:
         source_type, context_key, _ = get_current_task_source(repo_root)
-        lines.append(f"Path: {current_task}")
+        lines.append(t("context.path", path=current_task))
         lines.append(
-            f"Source: {source_type}" + (f":{context_key}" if context_key else "")
+            t(
+                "context.source",
+                source=source_type + (f":{context_key}" if context_key else ""),
+            )
         )
         ct = load_task(repo_root / current_task)
         if ct:
-            lines.append(f"Name: {ct.name}")
-            lines.append(f"Status: {ct.status}")
+            lines.append(t("context.name", name=ct.name))
+            lines.append(t("context.status", status=ct.status))
     else:
-        lines.append("(none)")
+        lines.append(t("context.none"))
     lines.append("")
 
     lines.append("========================================")

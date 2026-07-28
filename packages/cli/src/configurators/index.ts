@@ -16,6 +16,7 @@ import {
   type AITool,
   type CliFlag,
 } from "../types/ai-tools.js";
+import { DEFAULT_LANGUAGE, type SupportedLanguage } from "../utils/i18n.js";
 
 // Platform configurators
 import { configureClaude } from "./claude.js";
@@ -113,10 +114,14 @@ import {
 // =============================================================================
 
 interface PlatformFunctions {
-  /** Configure platform during init (copy templates to project) */
-  configure: (cwd: string, options?: PlatformConfigureOptions) => Promise<void>;
-  /** Collect template files for update tracking. Undefined = platform skipped during update. */
-  collectTemplates?: () => Map<string, string>;
+  /** Configure platform during init with locale plus platform-specific options. */
+  configure: (
+    cwd: string,
+    language: SupportedLanguage,
+    options?: PlatformConfigureOptions,
+  ) => Promise<void>;
+  /** Collect locale-selected template files for update tracking. */
+  collectTemplates?: (language: SupportedLanguage) => Map<string, string>;
 }
 
 /**
@@ -152,17 +157,18 @@ function collectBothTemplates(
   ctx: import("../types/ai-tools.js").TemplateContext,
   cmdPath: (name: string) => string,
   skillRoot: string,
+  language: SupportedLanguage,
   wrapCmd?: (filePath: string, content: string) => string,
 ): Map<string, string> {
   const files = new Map<string, string>();
-  for (const cmd of resolveCommands(ctx)) {
+  for (const cmd of resolveCommands(ctx, language)) {
     const filePath = cmdPath(cmd.name);
     files.set(filePath, wrapCmd ? wrapCmd(filePath, cmd.content) : cmd.content);
   }
   for (const [filePath, content] of collectSkillTemplates(
     skillRoot,
-    resolveSkills(ctx),
-    resolveBundledSkills(ctx),
+    resolveSkills(ctx, language),
+    resolveBundledSkills(ctx, language),
   )) {
     files.set(filePath, content);
   }
@@ -171,15 +177,17 @@ function collectBothTemplates(
 
 const PLATFORM_FUNCTIONS: Record<AITool, PlatformFunctions> = {
   "claude-code": {
-    configure: configureClaude,
-    collectTemplates: () => {
+    configure: (cwd, language, options) =>
+      configureClaude(cwd, { ...options, language }),
+    collectTemplates: (language) => {
       const ctx = AI_TOOLS["claude-code"].templateContext;
       const files = collectBothTemplates(
         ctx,
         (n) => `.claude/commands/trellis/${n}.md`,
         ".claude/skills",
+        language,
       );
-      for (const agent of getClaudeAgents()) {
+      for (const agent of getClaudeAgents(language)) {
         files.set(`.claude/agents/${agent.name}.md`, agent.content);
       }
       for (const [k, v] of collectSharedHooks(".claude/hooks", "claude")) {
@@ -195,13 +203,14 @@ const PLATFORM_FUNCTIONS: Record<AITool, PlatformFunctions> = {
   },
   cursor: {
     configure: configureCursor,
-    collectTemplates: () => {
+    collectTemplates: (language) => {
       const files = collectBothTemplates(
         AI_TOOLS.cursor.templateContext,
         (n) => `.cursor/commands/trellis-${n}.md`,
         ".cursor/skills",
+        language,
       );
-      for (const agent of getCursorAgents()) {
+      for (const agent of getCursorAgents(language)) {
         files.set(`.cursor/agents/${agent.name}.md`, agent.content);
       }
       for (const [k, v] of collectSharedHooks(".cursor/hooks", "cursor")) {
@@ -216,24 +225,24 @@ const PLATFORM_FUNCTIONS: Record<AITool, PlatformFunctions> = {
   },
   opencode: {
     configure: configureOpenCode,
-    collectTemplates: () => collectOpenCodeTemplates(),
+    collectTemplates: (language) => collectOpenCodeTemplates(language),
   },
   codex: {
     configure: configureCodex,
-    collectTemplates: () => {
+    collectTemplates: (language) => {
       const files = new Map<string, string>();
       const ctx = AI_TOOLS.codex.templateContext;
       for (const [filePath, content] of collectSkillTemplates(
         ".agents/skills",
-        resolveAllAsSkillsNeutral(ctx),
-        resolveBundledSkills(ctx),
+        resolveAllAsSkillsNeutral(ctx, language),
+        resolveBundledSkills(ctx, language),
       )) {
         files.set(filePath, content);
       }
       for (const skill of getCodexPlatformSkills()) {
         files.set(`.codex/skills/${skill.name}/SKILL.md`, skill.content);
       }
-      for (const agent of getCodexAgents()) {
+      for (const agent of getCodexAgents(language)) {
         files.set(`.codex/agents/${agent.name}.toml`, agent.content);
       }
       for (const hook of getCodexHooks()) {
@@ -254,26 +263,27 @@ const PLATFORM_FUNCTIONS: Record<AITool, PlatformFunctions> = {
   },
   kilo: {
     configure: configureKilo,
-    collectTemplates: () =>
+    collectTemplates: (language) =>
       collectBothTemplates(
         AI_TOOLS.kilo.templateContext,
         (n) => `.kilocode/workflows/${n}.md`,
         ".kilocode/skills",
+        language,
       ),
   },
   kiro: {
     configure: configureKiro,
-    collectTemplates: () => {
+    collectTemplates: (language) => {
       const files = new Map<string, string>();
       const ctx = AI_TOOLS.kiro.templateContext;
       for (const [filePath, content] of collectSkillTemplates(
         ".kiro/skills",
-        resolveAllAsSkills(ctx),
-        resolveBundledSkills(ctx),
+        resolveAllAsSkills(ctx, language),
+        resolveBundledSkills(ctx, language),
       )) {
         files.set(filePath, content);
       }
-      for (const agent of getKiroAgents()) {
+      for (const agent of getKiroAgents(language)) {
         files.set(
           `.kiro/agents/${agent.name}.json`,
           resolvePlaceholders(agent.content),
@@ -293,10 +303,10 @@ const PLATFORM_FUNCTIONS: Record<AITool, PlatformFunctions> = {
   },
   gemini: {
     configure: configureGemini,
-    collectTemplates: () => {
+    collectTemplates: (language) => {
       const ctx = AI_TOOLS.gemini.templateContext;
       const files = new Map<string, string>();
-      for (const cmd of resolveCommands(ctx)) {
+      for (const cmd of resolveCommands(ctx, language)) {
         const toml = `description = "Trellis: ${cmd.name}"\n\nprompt = """\n${cmd.content}\n"""\n`;
         files.set(`.gemini/commands/trellis/${cmd.name}.toml`, toml);
       }
@@ -305,12 +315,15 @@ const PLATFORM_FUNCTIONS: Record<AITool, PlatformFunctions> = {
       // for the same skill names.
       for (const [filePath, content] of collectSkillTemplates(
         ".agents/skills",
-        resolveSkillsNeutral(ctx),
-        resolveBundledSkills(ctx),
+        resolveSkillsNeutral(ctx, language),
+        resolveBundledSkills(ctx, language),
       )) {
         files.set(filePath, content);
       }
-      for (const agent of applyPullBasedPreludeMarkdown(getGeminiAgents())) {
+      for (const agent of applyPullBasedPreludeMarkdown(
+        getGeminiAgents(language),
+        language,
+      )) {
         files.set(`.gemini/agents/${agent.name}.md`, agent.content);
       }
       for (const [k, v] of collectSharedHooks(".gemini/hooks", "gemini")) {
@@ -325,35 +338,41 @@ const PLATFORM_FUNCTIONS: Record<AITool, PlatformFunctions> = {
   },
   antigravity: {
     configure: configureAntigravity,
-    collectTemplates: () =>
+    collectTemplates: (language) =>
       collectBothTemplates(
         AI_TOOLS.antigravity.templateContext,
         (n) => `.agent/workflows/${n}.md`,
         ".agent/skills",
+        language,
       ),
   },
   devin: {
     configure: configureDevin,
-    collectTemplates: () =>
+    collectTemplates: (language) =>
       collectBothTemplates(
         AI_TOOLS.devin.templateContext,
         (n) => `.devin/workflows/trellis-${n}.md`,
         ".devin/skills",
+        language,
       ),
   },
   qoder: {
     configure: configureQoder,
-    collectTemplates: () => {
+    collectTemplates: (language) => {
       const files = collectBothTemplates(
         AI_TOOLS.qoder.templateContext,
         (n) => `.qoder/commands/trellis-${n}.md`,
         ".qoder/skills",
+        language,
         (filePath, content) => {
           const name = path.basename(filePath, ".md");
-          return wrapWithCommandFrontmatter(name, content);
+          return wrapWithCommandFrontmatter(name, content, language);
         },
       );
-      for (const agent of applyPullBasedPreludeMarkdown(getQoderAgents())) {
+      for (const agent of applyPullBasedPreludeMarkdown(
+        getQoderAgents(language),
+        language,
+      )) {
         files.set(`.qoder/agents/${agent.name}.md`, agent.content);
       }
       for (const [k, v] of collectSharedHooks(".qoder/hooks", "qoder")) {
@@ -369,13 +388,14 @@ const PLATFORM_FUNCTIONS: Record<AITool, PlatformFunctions> = {
   },
   codebuddy: {
     configure: configureCodebuddy,
-    collectTemplates: () => {
+    collectTemplates: (language) => {
       const files = collectBothTemplates(
         AI_TOOLS.codebuddy.templateContext,
         (n) => `.codebuddy/commands/trellis/${n}.md`,
         ".codebuddy/skills",
+        language,
       );
-      for (const agent of getCodebuddyAgents()) {
+      for (const agent of getCodebuddyAgents(language)) {
         files.set(`.codebuddy/agents/${agent.name}.md`, agent.content);
       }
       for (const [k, v] of collectSharedHooks(
@@ -394,16 +414,16 @@ const PLATFORM_FUNCTIONS: Record<AITool, PlatformFunctions> = {
   },
   copilot: {
     configure: configureCopilot,
-    collectTemplates: () => {
+    collectTemplates: (language) => {
       const ctx = AI_TOOLS.copilot.templateContext;
       const files = new Map<string, string>();
-      for (const cmd of resolveCommands(ctx)) {
+      for (const cmd of resolveCommands(ctx, language)) {
         files.set(`.github/prompts/${cmd.name}.prompt.md`, cmd.content);
       }
       for (const [filePath, content] of collectSkillTemplates(
         ".github/skills",
-        resolveSkills(ctx),
-        resolveBundledSkills(ctx),
+        resolveSkills(ctx, language),
+        resolveBundledSkills(ctx, language),
       )) {
         files.set(filePath, content);
       }
@@ -422,7 +442,8 @@ const PLATFORM_FUNCTIONS: Record<AITool, PlatformFunctions> = {
       // Agents: reuse Cursor content + prepend pull-based prelude, then
       // normalize Cursor's Claude-style tools frontmatter for Copilot.
       for (const agent of applyPullBasedPreludeMarkdown(
-        normalizeCopilotMarkdownAgents(getCursorAgents()),
+        normalizeCopilotMarkdownAgents(getCursorAgents(language)),
+        language,
       )) {
         files.set(`.github/agents/${agent.name}.agent.md`, agent.content);
       }
@@ -435,13 +456,14 @@ const PLATFORM_FUNCTIONS: Record<AITool, PlatformFunctions> = {
   },
   droid: {
     configure: configureDroid,
-    collectTemplates: () => {
+    collectTemplates: (language) => {
       const files = collectBothTemplates(
         AI_TOOLS.droid.templateContext,
         (n) => `.factory/commands/trellis/${n}.md`,
         ".factory/skills",
+        language,
       );
-      for (const droid of getDroidDroids()) {
+      for (const droid of getDroidDroids(language)) {
         files.set(`.factory/droids/${droid.name}.md`, droid.content);
       }
       for (const [k, v] of collectSharedHooks(".factory/hooks", "droid")) {
@@ -457,7 +479,7 @@ const PLATFORM_FUNCTIONS: Record<AITool, PlatformFunctions> = {
   },
   pi: {
     configure: configurePi,
-    collectTemplates: () => collectPiTemplates(),
+    collectTemplates: (language) => collectPiTemplates(language),
   },
   reasonix: {
     configure: configureReasonix,
@@ -469,17 +491,21 @@ const PLATFORM_FUNCTIONS: Record<AITool, PlatformFunctions> = {
   },
   trae: {
     configure: configureTrae,
-    collectTemplates: () => {
+    collectTemplates: (language) => {
       const files = collectBothTemplates(
         AI_TOOLS.trae.templateContext,
         (n) => `.trae/commands/trellis-${n}.md`,
         ".trae/skills",
+        language,
         (filePath, content) => {
           const name = path.basename(filePath, ".md");
-          return wrapWithCommandFrontmatter(name, content);
+          return wrapWithCommandFrontmatter(name, content, language);
         },
       );
-      for (const agent of applyPullBasedPreludeMarkdown(getTraeAgents())) {
+      for (const agent of applyPullBasedPreludeMarkdown(
+        getTraeAgents(),
+        language,
+      )) {
         files.set(`.trae/agents/${agent.name}.md`, agent.content);
       }
       for (const [k, v] of collectSharedHooks(".trae/hooks", "trae")) {
@@ -590,9 +616,16 @@ export function getPlatformManagedPaths(platformId: AITool): string[] {
 export function configurePlatform(
   platformId: AITool,
   cwd: string,
-  options?: PlatformConfigureOptions,
+  options?: PlatformConfigureOptions | SupportedLanguage,
 ): Promise<void> {
-  return PLATFORM_FUNCTIONS[platformId].configure(cwd, options);
+  const normalizedOptions =
+    typeof options === "string" ? { language: options } : options;
+  const language = normalizedOptions?.language ?? DEFAULT_LANGUAGE;
+  return PLATFORM_FUNCTIONS[platformId].configure(
+    cwd,
+    language,
+    normalizedOptions,
+  );
 }
 
 /**
@@ -601,8 +634,9 @@ export function configurePlatform(
  */
 export function collectPlatformTemplates(
   platformId: AITool,
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
 ): Map<string, string> | undefined {
-  const map = PLATFORM_FUNCTIONS[platformId].collectTemplates?.();
+  const map = PLATFORM_FUNCTIONS[platformId].collectTemplates?.(language);
   return map ? replaceInMap(map) : map;
 }
 

@@ -14,6 +14,8 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { DEFAULT_LANGUAGE, type SupportedLanguage } from "../../utils/i18n.js";
+import { selectLocalizedTemplateFiles } from "../template-utils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -53,33 +55,141 @@ export interface CommonBundledSkill {
   files: CommonBundledSkillFile[];
 }
 
-// Cached results — files don't change during a CLI run
-let cachedCommands: CommonTemplate[] | undefined;
-let cachedSkills: CommonTemplate[] | undefined;
-let cachedBundledSkills: CommonBundledSkill[] | undefined;
+interface CommonDescriptionTemplates {
+  skills: Record<string, string>;
+  commands: Record<string, string>;
+}
+
+// Cached results — files don't change during a CLI run. Locale-selected data
+// is keyed explicitly so en -> zh -> en calls cannot contaminate one another.
+const cachedCommands = new Map<SupportedLanguage, CommonTemplate[]>();
+const cachedSkills = new Map<SupportedLanguage, CommonTemplate[]>();
+const cachedBundledSkills = new Map<SupportedLanguage, CommonBundledSkill[]>();
+const cachedDescriptions = new Map<
+  SupportedLanguage,
+  CommonDescriptionTemplates
+>();
+const cachedPullBasedPreludes = new Map<SupportedLanguage, string>();
+
+function getFlatMarkdownTemplates(
+  dir: "commands" | "skills",
+  language: SupportedLanguage,
+): CommonTemplate[] {
+  return selectLocalizedTemplateFiles(
+    listMarkdownFiles(dir),
+    ".md",
+    language,
+  ).map(({ logicalFile, sourceFile }) => ({
+    name: logicalFile.slice(0, -".md".length),
+    content: readTemplate(`${dir}/${sourceFile}`),
+  }));
+}
 
 /**
  * Get all command templates (stay as slash commands on all platforms).
- * Results are cached after first call.
+ * English files define the logical set; locale sidecars only replace content.
  */
-export function getCommandTemplates(): CommonTemplate[] {
-  cachedCommands ??= listMarkdownFiles("commands").map((file) => ({
-    name: file.replace(/\.md$/, ""),
-    content: readTemplate(`commands/${file}`),
-  }));
-  return cachedCommands;
+export function getCommandTemplates(
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): CommonTemplate[] {
+  const cached = cachedCommands.get(language);
+  if (cached) return cached;
+  const templates = getFlatMarkdownTemplates("commands", language);
+  cachedCommands.set(language, templates);
+  return templates;
 }
 
 /**
  * Get all skill templates (become auto-triggered skills on supporting platforms).
- * Results are cached after first call.
+ * English files define the logical set; locale sidecars only replace content.
  */
-export function getSkillTemplates(): CommonTemplate[] {
-  cachedSkills ??= listMarkdownFiles("skills").map((file) => ({
-    name: file.replace(/\.md$/, ""),
-    content: readTemplate(`skills/${file}`),
-  }));
-  return cachedSkills;
+export function getSkillTemplates(
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): CommonTemplate[] {
+  const cached = cachedSkills.get(language);
+  if (cached) return cached;
+  const templates = getFlatMarkdownTemplates("skills", language);
+  cachedSkills.set(language, templates);
+  return templates;
+}
+
+function loadDescriptionFile(relativePath: string): CommonDescriptionTemplates {
+  try {
+    const parsed = JSON.parse(
+      readTemplate(relativePath),
+    ) as Partial<CommonDescriptionTemplates>;
+    return {
+      skills: parsed.skills ?? {},
+      commands: parsed.commands ?? {},
+    };
+  } catch {
+    return { skills: {}, commands: {} };
+  }
+}
+
+/** Load generated skill/command descriptions with per-key English fallback. */
+export function getCommonDescriptions(
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): CommonDescriptionTemplates {
+  const cached = cachedDescriptions.get(language);
+  if (cached) return cached;
+
+  const english = loadDescriptionFile("descriptions.json");
+  if (language === DEFAULT_LANGUAGE) {
+    cachedDescriptions.set(language, english);
+    return english;
+  }
+
+  const selected = selectLocalizedTemplateFiles(
+    readdirSync(__dirname),
+    ".json",
+    language,
+  ).find(({ logicalFile }) => logicalFile === "descriptions.json");
+  const localized = selected
+    ? loadDescriptionFile(selected.sourceFile)
+    : { skills: {}, commands: {} };
+  const result = {
+    skills: { ...english.skills, ...localized.skills },
+    commands: { ...english.commands, ...localized.commands },
+  };
+  cachedDescriptions.set(language, result);
+  return result;
+}
+
+/** Get one generated skill matcher description. */
+export function getSkillDescription(
+  name: string,
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): string | undefined {
+  return getCommonDescriptions(language).skills[name];
+}
+
+/** Get one generated command-palette description. */
+export function getCommandDescription(
+  name: string,
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): string | undefined {
+  return getCommonDescriptions(language).commands[name];
+}
+
+/** Get the locale-selected class-2 pull-based agent prelude template. */
+export function getPullBasedPreludeTemplate(
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): string {
+  const cached = cachedPullBasedPreludes.get(language);
+  if (cached !== undefined) return cached;
+
+  const selected = selectLocalizedTemplateFiles(
+    listMarkdownFiles("agent-preludes"),
+    ".md",
+    language,
+  ).find(({ logicalFile }) => logicalFile === "pull-based.md");
+  if (!selected) {
+    throw new Error("Missing common agent prelude template: pull-based.md");
+  }
+  const content = readTemplate(`agent-preludes/${selected.sourceFile}`);
+  cachedPullBasedPreludes.set(language, content);
+  return content;
 }
 
 function listDirectories(dir: string): string[] {
@@ -96,27 +206,54 @@ function toPosixRelativePath(root: string, filePath: string): string {
   return relative(root, filePath).split(sep).join("/");
 }
 
-function listBundledSkillFiles(skillDir: string): CommonBundledSkillFile[] {
+function listBundledSkillFiles(
+  skillDir: string,
+  language: SupportedLanguage,
+): CommonBundledSkillFile[] {
   const root = join(__dirname, "bundled-skills", skillDir);
-  const files: CommonBundledSkillFile[] = [];
+  const discovered: string[] = [];
 
   function walk(dir: string): void {
-    for (const entry of readdirSync(dir)) {
+    for (const entry of readdirSync(dir).sort()) {
       const fullPath = join(dir, entry);
       const stat = statSync(fullPath);
       if (stat.isDirectory()) {
         walk(fullPath);
       } else {
-        files.push({
-          relativePath: toPosixRelativePath(root, fullPath),
-          content: readFileSync(fullPath, "utf-8"),
-        });
+        discovered.push(toPosixRelativePath(root, fullPath));
       }
     }
   }
 
   walk(root);
-  return files.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+  const selectedMarkdown = selectLocalizedTemplateFiles(
+    discovered,
+    ".md",
+    language,
+  );
+  const selectedMarkdownSources = new Set(
+    selectedMarkdown.map(({ sourceFile }) => sourceFile),
+  );
+  const sourceToLogical = new Map(
+    selectedMarkdown.map(({ logicalFile, sourceFile }) => [
+      sourceFile,
+      logicalFile,
+    ]),
+  );
+  const selectedFiles = discovered
+    .filter(
+      (relativePath) =>
+        !relativePath.endsWith(".md") ||
+        selectedMarkdownSources.has(relativePath),
+    )
+    .map((sourceFile) => ({
+      relativePath: sourceToLogical.get(sourceFile) ?? sourceFile,
+      content: readFileSync(join(root, ...sourceFile.split("/")), "utf-8"),
+    }));
+
+  return selectedFiles.sort((a, b) =>
+    a.relativePath.localeCompare(b.relativePath),
+  );
 }
 
 /**
@@ -125,10 +262,15 @@ function listBundledSkillFiles(skillDir: string): CommonBundledSkillFile[] {
  * These are copied as complete skill directories so references and assets stay
  * lazy-loadable instead of being flattened into one oversized SKILL.md.
  */
-export function getBundledSkillTemplates(): CommonBundledSkill[] {
-  cachedBundledSkills ??= listDirectories("bundled-skills").map((name) => ({
+export function getBundledSkillTemplates(
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): CommonBundledSkill[] {
+  const cached = cachedBundledSkills.get(language);
+  if (cached) return cached;
+  const templates = listDirectories("bundled-skills").map((name) => ({
     name,
-    files: listBundledSkillFiles(name),
+    files: listBundledSkillFiles(name, language),
   }));
-  return cachedBundledSkills;
+  cachedBundledSkills.set(language, templates);
+  return templates;
 }

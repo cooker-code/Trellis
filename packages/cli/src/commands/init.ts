@@ -70,6 +70,7 @@ import {
   resolveLanguage,
   validateLanguage,
   DEFAULT_LANGUAGE,
+  type SupportedLanguage,
 } from "../utils/i18n.js";
 
 const MIN_PYTHON_MAJOR = 3;
@@ -783,6 +784,7 @@ async function handleReinit(
   options: InitOptions,
   developerName: string | undefined,
   pythonCmd: string,
+  language: SupportedLanguage,
 ): Promise<boolean> {
   const TOOLS = getInitToolChoices();
   const configuredPlatforms = getConfiguredPlatforms(cwd);
@@ -894,6 +896,7 @@ async function handleReinit(
             );
             await configurePlatform(platformId, cwd, {
               withStatusline: options.withStatusline,
+              language,
             });
             if (platformId === "claude-code" && options.withStatusline) {
               console.log(
@@ -1133,8 +1136,8 @@ export async function init(options: InitOptions): Promise<void> {
   // Resolve i18n language (CLI flag > env > config.yaml > "en"). When the
   // user passes `--language zh`, propagate via env so `resolveLanguage(cwd)`
   // and Python scripts (via TRELLIS_LANGUAGE) agree throughout this run.
-  // Invalid flag values warn once and degrade to the env/config/default
-  // chain (mirrors Python `_is_true_config_value` warn-on-invalid style).
+  // An explicitly supplied invalid flag is still the highest-priority source:
+  // warn once and select English immediately instead of consulting env/config.
   if (options.language !== undefined) {
     const validated = validateLanguage(options.language);
     if (!validated) {
@@ -1143,6 +1146,7 @@ export async function init(options: InitOptions): Promise<void> {
           `⚠ Invalid --language value: ${JSON.stringify(options.language)}; falling back to ${DEFAULT_LANGUAGE}.`,
         ),
       );
+      process.env.TRELLIS_LANGUAGE = DEFAULT_LANGUAGE;
     } else {
       process.env.TRELLIS_LANGUAGE = validated;
     }
@@ -1234,6 +1238,7 @@ export async function init(options: InitOptions): Promise<void> {
       options,
       developerName,
       pythonCmd,
+      language,
     );
     if (reinitDone) return;
     // reinitDone === false means user chose "full re-initialize" → fall through
@@ -1971,6 +1976,7 @@ export async function init(options: InitOptions): Promise<void> {
         );
         await configurePlatform(platformId, cwd, {
           withStatusline: options.withStatusline,
+          language,
         });
         if (platformId === "claude-code" && options.withStatusline) {
           console.log(
@@ -1998,8 +2004,13 @@ export async function init(options: InitOptions): Promise<void> {
     writeSpecRegistryConfig(cwd, registrySpecConfigToPersist);
   }
 
-  // Initialize template hashes for modification tracking
-  const hashedCount = initializeHashes(cwd, { trackedPaths: writtenPaths });
+  // Initialize template hashes for modification tracking. On a full re-init,
+  // byte-identical owned files are intentionally absent from `writtenPaths`;
+  // merge preserves their existing ownership hashes.
+  const hashedCount = initializeHashes(cwd, {
+    trackedPaths: writtenPaths,
+    merge: !isFirstInit,
+  });
   if (useRemoteTemplate) {
     const specFilesToHash = new Map<string, string>();
     for (const relativePath of collectSpecPaths(cwd)) {

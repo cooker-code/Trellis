@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { AI_TOOLS } from "../types/ai-tools.js";
+import { DEFAULT_LANGUAGE, type SupportedLanguage } from "../utils/i18n.js";
 import {
   getAllAgents,
   getAllCodexSkills,
@@ -148,7 +149,10 @@ export function preserveCodexAgentModelKeys(
  * - .codex/skills/ — Codex-specific skills (platform-specific templates)
  * - .codex/agents/, hooks/, hooks.json, config.toml — platform-specific
  */
-export async function configureCodex(cwd: string): Promise<void> {
+export async function configureCodex(
+  cwd: string,
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): Promise<void> {
   // Shared skills from common source → .agents/skills/
   // Uses the neutral placeholder resolver so the auto-triggered skill templates
   // from `common/skills/` render to the
@@ -158,8 +162,8 @@ export async function configureCodex(cwd: string): Promise<void> {
   const sharedSkillsRoot = path.join(cwd, ".agents", "skills");
   await writeSkills(
     sharedSkillsRoot,
-    resolveAllAsSkillsNeutral(AI_TOOLS.codex.templateContext),
-    resolveBundledSkills(AI_TOOLS.codex.templateContext),
+    resolveAllAsSkillsNeutral(AI_TOOLS.codex.templateContext, language),
+    resolveBundledSkills(AI_TOOLS.codex.templateContext, language),
   );
 
   const codexRoot = path.join(cwd, ".codex");
@@ -187,7 +191,7 @@ export async function configureCodex(cwd: string): Promise<void> {
   // Preserve any user-set `model` / `model_reasoning_effort` keys from the
   // existing on-disk files before overwriting with the fresh render.
   const agentTomls = new Map<string, string>();
-  for (const agent of getAllAgents()) {
+  for (const agent of getAllAgents(language)) {
     agentTomls.set(
       `.codex/agents/${agent.name}.toml`,
       replacePythonCommandLiterals(agent.content),

@@ -24,6 +24,7 @@ from pathlib import Path
 from .config import get_context_injection_limits
 from .git import branch_exists_locally
 from .io import read_json
+from .i18n import t
 from .log import Colors, colored
 from .paths import FILE_TASK_JSON, get_repo_root
 from .task_utils import resolve_task_dir
@@ -63,10 +64,10 @@ def cmd_add_context(args: argparse.Namespace) -> int:
 
     jsonl_name = args.file
     path = args.path
-    reason = args.reason or "Added manually"
+    reason = args.reason or t("task_context.added_manually")
 
     if not target_dir.is_dir():
-        print(colored(f"Error: Directory not found: {target_dir}", Colors.RED))
+        print(colored(t("task_context.directory_not_found", path=target_dir), Colors.RED))
         return 1
 
     # Support shorthand
@@ -82,14 +83,14 @@ def cmd_add_context(args: argparse.Namespace) -> int:
         if not path.endswith("/"):
             path = f"{path}/"
     elif not full_path.is_file():
-        print(colored(f"Error: Path not found: {path}", Colors.RED))
+        print(colored(t("task_context.path_not_found", path=path), Colors.RED))
         return 1
 
     # Check if already exists
     if jsonl_file.is_file():
         content = jsonl_file.read_text(encoding="utf-8")
         if f'"{path}"' in content:
-            print(colored(f"Warning: Entry already exists for {path}", Colors.YELLOW))
+            print(colored(t("task_context.entry_exists", path=path), Colors.YELLOW))
             return 0
 
     # Add entry
@@ -102,7 +103,7 @@ def cmd_add_context(args: argparse.Namespace) -> int:
     with jsonl_file.open("a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
-    print(colored(f"Added {entry_type}: {path}", Colors.GREEN))
+    print(colored(t("task_context.added", entry_type=entry_type, path=path), Colors.GREEN))
     return 0
 
 
@@ -116,11 +117,11 @@ def cmd_validate(args: argparse.Namespace) -> int:
     target_dir = resolve_task_dir(args.dir, repo_root)
 
     if not target_dir.is_dir():
-        print(colored("Error: task directory required", Colors.RED))
+        print(colored(t("task_context.task_dir_required"), Colors.RED))
         return 1
 
-    print(colored("=== Validating Context Files ===", Colors.BLUE))
-    print(f"Target dir: {target_dir}")
+    print(colored(t("task_context.validating_header"), Colors.BLUE))
+    print(t("task_context.target_dir", path=target_dir))
     print()
 
     # Warn (don't fail validation) when the recorded branch is stale — it
@@ -147,10 +148,10 @@ def cmd_validate(args: argparse.Namespace) -> int:
 
     print()
     if total_errors == 0:
-        print(colored("✓ All validations passed", Colors.GREEN))
+        print(colored(t("task_context.validation_passed"), Colors.GREEN))
         return 0
     else:
-        print(colored(f"✗ Validation failed ({total_errors} errors)", Colors.RED))
+        print(colored(t("task_context.validation_failed", count=total_errors), Colors.RED))
         return 1
 
 
@@ -186,7 +187,7 @@ def _validate_jsonl(jsonl_file: Path, repo_root: Path, task_dir: Path | None = N
     errors = 0
 
     if not jsonl_file.is_file():
-        print(f"  {colored(f'{file_name}: not found (skipped)', Colors.YELLOW)}")
+        print(f"  {colored(t('task_context.file_missing_skipped', file=file_name), Colors.YELLOW)}")
         return 0
 
     task_rel = ""
@@ -208,7 +209,7 @@ def _validate_jsonl(jsonl_file: Path, repo_root: Path, task_dir: Path | None = N
         try:
             data = json.loads(line)
         except json.JSONDecodeError:
-            print(f"  {colored(f'{file_name}:{line_num}: Invalid JSON', Colors.RED)}")
+            print(f"  {colored(t('task_context.invalid_json', file=file_name, line=line_num), Colors.RED)}")
             errors += 1
             continue
 
@@ -223,12 +224,12 @@ def _validate_jsonl(jsonl_file: Path, repo_root: Path, task_dir: Path | None = N
         full_path = repo_root / file_path
         if entry_type == "directory":
             if not full_path.is_dir():
-                print(f"  {colored(f'{file_name}:{line_num}: Directory not found: {file_path}', Colors.RED)}")
+                print(f"  {colored(t('task_context.entry_directory_missing', file=file_name, line=line_num, path=file_path), Colors.RED)}")
                 errors += 1
             continue
 
         if not full_path.is_file():
-            print(f"  {colored(f'{file_name}:{line_num}: File not found: {file_path}', Colors.RED)}")
+            print(f"  {colored(t('task_context.entry_file_missing', file=file_name, line=line_num, path=file_path), Colors.RED)}")
             errors += 1
             continue
 
@@ -252,9 +253,9 @@ def _validate_jsonl(jsonl_file: Path, repo_root: Path, task_dir: Path | None = N
                 )
 
     if errors == 0:
-        print(f"  {colored(f'{file_name}: ✓ ({real_entries} entries)', Colors.GREEN)}")
+        print(f"  {colored(t('task_context.file_valid', file=file_name, count=real_entries), Colors.GREEN)}")
     else:
-        print(f"  {colored(f'{file_name}: ✗ ({errors} errors)', Colors.RED)}")
+        print(f"  {colored(t('task_context.file_invalid', file=file_name, count=errors), Colors.RED)}")
 
     return errors
 
@@ -269,10 +270,10 @@ def cmd_list_context(args: argparse.Namespace) -> int:
     target_dir = resolve_task_dir(args.dir, repo_root)
 
     if not target_dir.is_dir():
-        print(colored("Error: task directory required", Colors.RED))
+        print(colored(t("task_context.task_dir_required"), Colors.RED))
         return 1
 
-    print(colored("=== Context Files ===", Colors.BLUE))
+    print(colored(t("task_context.files_header"), Colors.BLUE))
     print()
 
     for jsonl_name in ["implement.jsonl", "check.jsonl"]:
@@ -310,7 +311,7 @@ def cmd_list_context(args: argparse.Namespace) -> int:
             print(f"     {colored('→', Colors.YELLOW)} {reason}")
 
         if seed_only:
-            print(f"  {colored('(no curated entries yet — only seed row)', Colors.YELLOW)}")
+            print(f"  {colored(t('task_context.seed_only'), Colors.YELLOW)}")
 
         print()
 

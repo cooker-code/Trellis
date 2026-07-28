@@ -30,6 +30,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from common.i18n import set_locale, t
 from common.paths import (
     DIR_TASKS,
     DIR_WORKFLOW,
@@ -336,16 +337,16 @@ def update_index(
     active_num = int(match.group(1)) if match else 0
     files_table = count_journal_files(dev_dir, active_num)
 
-    print(f"Updating index.md for session {new_session}...")
-    print(f"  Title: {title}")
-    print(f"  Commit: {commit_display}")
-    print(f"  Active File: {active_file}")
+    print(t("add_session.updating_index", session=new_session))
+    print(t("add_session.index_title", title=title))
+    print(t("add_session.index_commit", commit=commit_display))
+    print(t("add_session.active_file", file=active_file))
     print()
 
     content = index_file.read_text(encoding="utf-8")
 
     if "@@@auto:current-status" not in content:
-        print("Error: Markers not found in index.md. Please ensure markers exist.", file=sys.stderr)
+        print(t("add_session.markers_missing"), file=sys.stderr)
         return False
 
     # Process sections
@@ -426,7 +427,7 @@ def update_index(
         new_lines.append(line)
 
     index_file.write_text("\n".join(new_lines), encoding="utf-8")
-    print("[OK] Updated index.md successfully!")
+    print(t("add_session.index_updated"))
     return True
 
 
@@ -450,7 +451,7 @@ def _auto_commit_workspace(repo_root: Path) -> None:
     """
     if not get_session_auto_commit(repo_root):
         print(
-            "[OK] session_auto_commit: false — skipping git stage/commit.",
+            t("git.auto_commit_disabled"),
             file=sys.stderr,
         )
         return
@@ -474,7 +475,7 @@ def _auto_commit_workspace(repo_root: Path) -> None:
             if not p.startswith(f"{DIR_WORKFLOW}/{DIR_TASKS}/")
         ]
     if not paths:
-        print("[OK] No workspace changes to commit.", file=sys.stderr)
+        print(t("git.no_workspace_changes"), file=sys.stderr)
         return
 
     success, _, err = safe_git_add(paths, repo_root)
@@ -483,7 +484,7 @@ def _auto_commit_workspace(repo_root: Path) -> None:
             print_gitignore_warning(paths)
         else:
             print(
-                f"[WARN] git add failed: {err.strip() if err else 'unknown error'}",
+                t("git.add_failed", error=err.strip() if err else t("common.unknown_error")),
                 file=sys.stderr,
             )
         return
@@ -493,15 +494,15 @@ def _auto_commit_workspace(repo_root: Path) -> None:
         ["diff", "--cached", "--quiet", "--", *paths], cwd=repo_root
     )
     if rc == 0:
-        print("[OK] No workspace changes to commit.", file=sys.stderr)
+        print(t("git.no_workspace_changes"), file=sys.stderr)
         return
 
     rc, _, commit_err = run_git(["commit", "-m", commit_msg], cwd=repo_root)
     if rc == 0:
-        print(f"[OK] Auto-committed: {commit_msg}", file=sys.stderr)
+        print(t("git.auto_committed", message=commit_msg), file=sys.stderr)
     else:
         print(
-            f"[WARN] Auto-commit failed: {commit_err.strip()}",
+            t("git.auto_commit_failed", error=commit_err.strip()),
             file=sys.stderr,
         )
 
@@ -525,12 +526,12 @@ def add_session(
 
     developer = get_developer(repo_root)
     if not developer:
-        print("Error: Developer not initialized", file=sys.stderr)
+        print(t("add_session.developer_missing"), file=sys.stderr)
         return 1
 
     dev_dir = get_workspace_dir(repo_root)
     if not dev_dir:
-        print("Error: Workspace directory not found", file=sys.stderr)
+        print(t("add_session.workspace_missing"), file=sys.stderr)
         return 1
 
     max_lines = get_max_journal_lines(repo_root)
@@ -550,17 +551,17 @@ def add_session(
     content_lines = len(session_content.splitlines())
 
     print("========================================", file=sys.stderr)
-    print("ADD SESSION", file=sys.stderr)
+    print(t("add_session.header"), file=sys.stderr)
     print("========================================", file=sys.stderr)
     print("", file=sys.stderr)
-    print(f"Session: {new_session}", file=sys.stderr)
-    print(f"Title: {title}", file=sys.stderr)
-    print(f"Commit: {commit}", file=sys.stderr)
+    print(t("add_session.session", session=new_session), file=sys.stderr)
+    print(t("add_session.title", title=title), file=sys.stderr)
+    print(t("add_session.commit", commit=commit), file=sys.stderr)
     print("", file=sys.stderr)
-    print(f"Current journal file: {FILE_JOURNAL_PREFIX}{current_num}.md", file=sys.stderr)
-    print(f"Current lines: {current_lines}", file=sys.stderr)
-    print(f"New content lines: {content_lines}", file=sys.stderr)
-    print(f"Total after append: {current_lines + content_lines}", file=sys.stderr)
+    print(t("add_session.current_journal", file=f"{FILE_JOURNAL_PREFIX}{current_num}.md"), file=sys.stderr)
+    print(t("add_session.current_lines", count=current_lines), file=sys.stderr)
+    print(t("add_session.new_lines", count=content_lines), file=sys.stderr)
+    print(t("add_session.total_lines", count=current_lines + content_lines), file=sys.stderr)
     print("", file=sys.stderr)
 
     target_file = journal_file
@@ -568,15 +569,15 @@ def add_session(
 
     if current_lines + content_lines > max_lines:
         target_num = current_num + 1
-        print(f"[!] Exceeds {max_lines} lines, creating {FILE_JOURNAL_PREFIX}{target_num}.md", file=sys.stderr)
+        print(t("add_session.rotating", max=max_lines, file=f"{FILE_JOURNAL_PREFIX}{target_num}.md"), file=sys.stderr)
         target_file = create_new_journal_file(dev_dir, target_num, developer, today, max_lines)
-        print(f"Created: {target_file}", file=sys.stderr)
+        print(t("add_session.created_file", path=target_file), file=sys.stderr)
 
     # Append session content
     if target_file:
         with target_file.open("a", encoding="utf-8") as f:
             f.write(session_content)
-        print(f"[OK] Appended session to {target_file.name}", file=sys.stderr)
+        print(t("add_session.appended", file=target_file.name), file=sys.stderr)
 
     print("", file=sys.stderr)
 
@@ -596,11 +597,11 @@ def add_session(
 
     print("", file=sys.stderr)
     print("========================================", file=sys.stderr)
-    print(f"[OK] Session {new_session} added successfully!", file=sys.stderr)
+    print(t("add_session.success", session=new_session), file=sys.stderr)
     print("========================================", file=sys.stderr)
     print("", file=sys.stderr)
-    print("Files updated:", file=sys.stderr)
-    print(f"  - {target_file.name if target_file else 'journal'}", file=sys.stderr)
+    print(t("add_session.files_updated"), file=sys.stderr)
+    print(f"  - {target_file.name if target_file else t('add_session.journal_fallback')}", file=sys.stderr)
     print("  - index.md", file=sys.stderr)
 
     # Auto-commit workspace changes
@@ -617,22 +618,21 @@ def add_session(
 
 def main() -> int:
     """CLI entry point."""
-    parser = argparse.ArgumentParser(
-        description="Add a new session to journal file and update index.md"
-    )
-    parser.add_argument("--title", required=True, help="Session title")
-    parser.add_argument("--commit", default="-", help="Comma-separated commit hashes")
-    parser.add_argument("--summary", default="Session summary was not supplied.", help="Brief summary")
-    parser.add_argument("--content-file", help="Path to file with detailed content")
-    parser.add_argument("--package", help="Package name tag (e.g., cli, docs-site)")
-    parser.add_argument("--branch", help="Branch name (auto-detected if omitted)")
-    parser.add_argument("--change", action="append", help="Main Changes bullet (repeatable)")
-    parser.add_argument("--test", action="append", help="Testing bullet (repeatable)")
-    parser.add_argument("--next-step", action="append", help="Next Steps bullet (repeatable)")
+    set_locale()
+    parser = argparse.ArgumentParser(description=t("add_session.arg_description"))
+    parser.add_argument("--title", required=True, help=t("add_session.arg_title"))
+    parser.add_argument("--commit", default="-", help=t("add_session.arg_commit"))
+    parser.add_argument("--summary", default="Session summary was not supplied.", help=t("add_session.arg_summary"))
+    parser.add_argument("--content-file", help=t("add_session.arg_content_file"))
+    parser.add_argument("--package", help=t("add_session.arg_package"))
+    parser.add_argument("--branch", help=t("add_session.arg_branch"))
+    parser.add_argument("--change", action="append", help=t("add_session.arg_change"))
+    parser.add_argument("--test", action="append", help=t("add_session.arg_test"))
+    parser.add_argument("--next-step", action="append", help=t("add_session.arg_next_step"))
     parser.add_argument("--no-commit", action="store_true",
-                        help="Skip auto-commit of workspace changes")
+                        help=t("add_session.arg_no_commit"))
     parser.add_argument("--stdin", action="store_true",
-                        help="Read extra content from stdin (explicit opt-in)")
+                        help=t("add_session.arg_stdin"))
 
     args = parser.parse_args()
 
@@ -653,12 +653,12 @@ def main() -> int:
     if package:
         # CLI source: fail-fast in monorepo, ignore in single-repo
         if not is_monorepo(repo_root):
-            print("Warning: --package ignored in single-repo project", file=sys.stderr)
+            print(t("add_session.package_ignored"), file=sys.stderr)
             package = None
         elif not validate_package(package, repo_root):
             packages = get_packages(repo_root)
             available = ", ".join(sorted(packages.keys())) if packages else "(none)"
-            print(f"Error: unknown package '{package}'. Available: {available}", file=sys.stderr)
+            print(t("add_session.unknown_package", package=package, available=available), file=sys.stderr)
             return 1
     else:
         # Inferred: active task's task.json.package → default_package → None

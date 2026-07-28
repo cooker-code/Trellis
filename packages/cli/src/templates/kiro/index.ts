@@ -13,6 +13,7 @@
  */
 
 import { createTemplateReader, type AgentTemplate } from "../template-utils.js";
+import { DEFAULT_LANGUAGE, type SupportedLanguage } from "../../utils/i18n.js";
 export type { AgentTemplate };
 
 const { listFiles, readTemplate, listJsonAgents } = createTemplateReader(
@@ -23,7 +24,9 @@ const { listFiles, readTemplate, listJsonAgents } = createTemplateReader(
  * Get all Kiro agent templates (JSON format).
  * Content contains {{PYTHON_CMD}} placeholder that must be resolved before writing.
  */
-export const getAllAgents = (): AgentTemplate[] => listJsonAgents();
+export const getAllAgents = (
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): AgentTemplate[] => listJsonAgents("agents", language);
 
 export interface IdeHookTemplate {
   /** Filename (e.g. "trellis-workflow-state.kiro.hook") */

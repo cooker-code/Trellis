@@ -1,5 +1,6 @@
 import path from "node:path";
 import { AI_TOOLS } from "../types/ai-tools.js";
+import { DEFAULT_LANGUAGE, type SupportedLanguage } from "../utils/i18n.js";
 import {
   resolvePlaceholders,
   resolveAllAsSkills,
@@ -19,19 +20,22 @@ import { getAllAgents, getIdeHooks } from "../templates/kiro/index.js";
  * - hooks/*.py — shared hook scripts (referenced by agent JSON / .kiro.hook)
  * - hooks/*.kiro.hook — IDE hook definitions (promptSubmit → inject-workflow-state)
  */
-export async function configureKiro(cwd: string): Promise<void> {
+export async function configureKiro(
+  cwd: string,
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): Promise<void> {
   const config = AI_TOOLS.kiro;
   // Kiro configDir is ".kiro/skills" — agents and hooks go under ".kiro/"
   const kiroRoot = path.join(cwd, ".kiro");
 
   await writeSkills(
     path.join(kiroRoot, "skills"),
-    resolveAllAsSkills(config.templateContext),
-    resolveBundledSkills(config.templateContext),
+    resolveAllAsSkills(config.templateContext, language),
+    resolveBundledSkills(config.templateContext, language),
   );
 
   // Agents (JSON format, with {{PYTHON_CMD}} resolved)
-  const agents = getAllAgents().map((a) => ({
+  const agents = getAllAgents(language).map((a) => ({
     ...a,
     content: resolvePlaceholders(a.content),
   }));

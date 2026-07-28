@@ -16,6 +16,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { DEFAULT_LANGUAGE, type SupportedLanguage } from "../../utils/i18n.js";
+import { selectLocalizedTemplateFiles } from "../template-utils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -60,20 +62,17 @@ export interface ConfigTemplate {
 
 // Shared skills are now sourced from common/ templates (see templates/common/index.ts)
 
-export function getAllAgents(): AgentTemplate[] {
-  const agents: AgentTemplate[] = [];
-
-  for (const file of listFiles("agents")) {
-    if (!file.endsWith(".toml")) {
-      continue;
-    }
-
-    const name = file.replace(".toml", "");
-    const content = readTemplate(`agents/${file}`);
-    agents.push({ name, content });
-  }
-
-  return agents;
+export function getAllAgents(
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): AgentTemplate[] {
+  return selectLocalizedTemplateFiles(
+    listFiles("agents"),
+    ".toml",
+    language,
+  ).map(({ logicalFile, sourceFile }) => ({
+    name: logicalFile.slice(0, -".toml".length),
+    content: readTemplate(`agents/${sourceFile}`),
+  }));
 }
 
 /**

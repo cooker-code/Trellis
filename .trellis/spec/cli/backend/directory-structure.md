@@ -561,7 +561,78 @@ function pickByLocale(stem: string, ext: string, locale: string): string {
 ```
 --language flag  >  TRELLIS_LANGUAGE env  >  config.yaml: language  >  "en"
 ```
-The TS-side flag handler sets `process.env.TRELLIS_LANGUAGE` so the Python scripts inherit through the same priority chain. Invalid values warn to stderr and fall back to `"en"` — never raise.
+The TS-side flag handler sets `process.env.TRELLIS_LANGUAGE` so the Python scripts inherit through the same priority chain. An explicitly supplied invalid `--language` value remains authoritative: warn to stderr, set the run locale to `"en"`, and do not continue to env/config. Invalid env/config values also degrade to `"en"`; locale errors never raise.
+
+### Scenario: Locale-Aware Template Aggregation
+
+#### 1. Scope / Trigger
+
+Apply this contract whenever a locale sidecar is added to common commands/skills, bundled skills, physical platform agents, generated descriptions/preludes, or `*.md.txt` spec templates. Locale selection must happen before configurators construct landed paths or hashes.
+
+#### 2. Signatures
+
+```ts
+selectLocalizedTemplateFiles(files, semanticSuffix, language)
+getCommandTemplates(language)
+getSkillTemplates(language)
+getBundledSkillTemplates(language)
+getSpecTemplateContent(englishRelativePath, language)
+configurePlatform(platformId, cwd, language)
+collectPlatformTemplates(platformId, language)
+```
+
+`semanticSuffix` is explicit so compound suffixes resolve as `foo.zh.md.txt`, not `foo.md.zh.txt`. `PlatformFunctions.configure` and `collectTemplates` both receive the same `SupportedLanguage`.
+
+#### 3. Contracts
+
+- Unsuffixed English files define the canonical logical inventory and destination paths.
+- A locale sidecar may replace content only; an orphan sidecar must never create a landed file.
+- Missing translations fall back per file (or per description key) to English.
+- Caches are keyed by locale; `en -> zh -> en` in one process must return the original English bytes.
+- `configurePlatform()` and `collectPlatformTemplates()` must receive the same resolved locale and return byte-identical content for corresponding paths.
+- Spec templates are localized during init/re-init only; update must preserve user-owned `.trellis/spec/` content.
+- Python messages resolve locale at each process start; changing Python output language does not require template materialization.
+
+#### 4. Validation & Error Matrix
+
+| Condition | Required behavior |
+|---|---|
+| `foo.zh.md` exists beside `foo.md`, locale `zh` | Read Chinese bytes, land as `foo.md` |
+| `foo.zh.md` is missing | Read exact English bytes without warning/error |
+| Orphan `foo.zh.md` has no English canonical file | Ignore it; create no destination |
+| Compound `index.zh.md.txt` exists | Select it for logical `index.md.txt` |
+| Explicit `--language ja` | Warn once and select `en` immediately |
+| Locale switches in one process | Use locale-keyed cache entries; no cross-locale leakage |
+| Configure/collect content differs | Test failure; update hashes would churn |
+
+#### 5. Good / Base / Bad Cases
+
+- Good: `resolveLanguage(cwd)` runs once at init/update entry, and the resulting `SupportedLanguage` is passed through every configurator/collector.
+- Base: `language=en` selects canonical files and remains byte-compatible with the upstream English-only behavior.
+- Bad: a platform reader enumerates every `*.md`, causing both `agent.md` and `agent.zh.md` to land, or a collector defaults to English while configure writes Chinese.
+
+#### 6. Tests Required
+
+- Dynamic canonical-to-sidecar inventories for every localized source family.
+- Per-file fallback and orphan-sidecar rejection.
+- Compound suffix selection and unsuffixed destination assertions.
+- `en -> zh -> en` cache-isolation test.
+- Configure/collect byte parity for every platform.
+- Init/update integration covering locale switch, hash refresh, user-modification protection, and same-locale idempotence.
+- Translation completeness checks that inspect headings, tables, lists, comments, and human-facing fenced examples; mixed English prose must not pass merely because the same unit contains one Chinese character.
+
+#### 7. Wrong vs Correct
+
+```ts
+// Wrong: independently resolve/default locale in each layer.
+await configurePlatform(platformId, cwd);            // writes English
+collectPlatformTemplates(platformId, "zh");          // hashes Chinese
+
+// Correct: resolve once and propagate the same typed value.
+const language = resolveLanguage(cwd);
+await configurePlatform(platformId, cwd, language);
+collectPlatformTemplates(platformId, language);
+```
 
 ### i18n Common Mistake: Top-level `const` Template Cannot Be Locale-Aware
 
@@ -587,4 +658,4 @@ export function getWorkflowTemplate(locale: string = "en"): string {
 }
 ```
 
-**Prevention**: When introducing locale variants, grep for **every** `readTemplate(` at the top level — each one needs the same treatment. Today the affected list is `workflowMdTemplate` (4 import sites: `init.ts`, `update.ts:43`, `update.ts:646`, `workflow.ts`). Filesystem-driven aggregators (`listMarkdownFiles("commands")`, `listMdAgents`) need the picker injected at the listing call instead.
+**Prevention**: When introducing locale variants, grep for **every** top-level template read and every filesystem-driven aggregator. Locale-aware sources must be functions keyed by `SupportedLanguage`, not frozen constants. The current propagation surface includes workflow, common commands/skills/descriptions/preludes, recursive bundled skills, physical Markdown/JSON/TOML agents, spec `*.md.txt` templates, all platform configurators, and update collectors. Add configure/collect byte-parity coverage whenever this surface grows.

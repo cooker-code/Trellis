@@ -36,6 +36,7 @@ import sys
 from pathlib import Path
 
 from .git import run_git
+from .i18n import t
 from .paths import (
     DIR_ARCHIVE,
     DIR_TASKS,
@@ -240,20 +241,20 @@ def print_gitignore_warning(paths: list[str]) -> None:
     known to invent that command, which fans out to ignored caches/backups.
     """
     print(
-        "[WARN] git add failed because .trellis/ paths are ignored by your .gitignore.",
+        t("safe_commit.ignored"),
         file=sys.stderr,
     )
     print(
-        "[WARN] Skipping auto-commit. The journal/task files were still written to disk;",
+        t("safe_commit.skipping"),
         file=sys.stderr,
     )
     print(
-        "[WARN] git was not touched.",
+        t("safe_commit.git_untouched"),
         file=sys.stderr,
     )
     print("[WARN]", file=sys.stderr)
     print(
-        "[WARN] Trellis manages these specific paths and they should be tracked:",
+        t("safe_commit.tracked_paths"),
         file=sys.stderr,
     )
     if paths:
@@ -274,18 +275,18 @@ def print_gitignore_warning(paths: list[str]) -> None:
         )
     print("[WARN]", file=sys.stderr)
     print(
-        "[WARN] Recommended: change your .gitignore from `.trellis/` to specific",
+        t("safe_commit.recommended"),
         file=sys.stderr,
     )
     print(
-        "[WARN] subpaths that should remain ignored, e.g.:",
+        t("safe_commit.subpaths_example"),
         file=sys.stderr,
     )
     for sub in TRELLIS_IGNORED_SUBPATHS:
         print(f"[WARN]   {sub}", file=sys.stderr)
     print("[WARN]", file=sys.stderr)
     print(
-        "[WARN] Or, if you intentionally keep .trellis/ local-only, set in",
+        t("safe_commit.local_only"),
         file=sys.stderr,
     )
     print(
@@ -297,19 +298,19 @@ def print_gitignore_warning(paths: list[str]) -> None:
         file=sys.stderr,
     )
     print(
-        "[WARN] so the scripts skip git entirely and you can review / commit",
+        t("safe_commit.skip_git"),
         file=sys.stderr,
     )
     print(
-        "[WARN] manually with `git status` / `git add` / `git commit`.",
+        t("safe_commit.manual_git"),
         file=sys.stderr,
     )
     print("[WARN]", file=sys.stderr)
     print(
-        "[WARN] Do NOT use `git add -f .trellis/` — it pulls in backups, worktrees,",
+        t("safe_commit.forbidden_command"),
         file=sys.stderr,
     )
     print(
-        "[WARN] and runtime caches that should never be committed.",
+        t("safe_commit.forbidden_reason"),
         file=sys.stderr,
     )

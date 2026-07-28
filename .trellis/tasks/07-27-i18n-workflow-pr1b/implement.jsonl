@@ -1,0 +1,12 @@
+{"file":".trellis/spec/cli/backend/index.md","reason":"Backend pre-development checklist and required workflow/parser/update guidance."}
+{"file":".trellis/spec/cli/backend/workflow-state-contract.md","reason":"Machine marker syntax, parser/stripper parity, whole-file workflow update, and breadcrumb invariants."}
+{"file":".trellis/spec/cli/backend/commands-update.md","reason":"Locale-selected whole-file workflow update, hash ownership, idempotency, and update integration conventions."}
+{"file":".trellis/spec/cli/backend/script-conventions.md","reason":"Distributed Python 3.9 compatibility and workflow_phase.py conventions."}
+{"file":".trellis/spec/cli/unit-test/index.md","reason":"Test quality gate and required validation commands."}
+{"file":".trellis/spec/cli/unit-test/conventions.md","reason":"Exact assertions, non-tautological fixtures, and environment isolation requirements."}
+{"file":".trellis/spec/cli/unit-test/integration-patterns.md","reason":"Real temp-directory init/update integration test pattern."}
+{"file":".trellis/tasks/05-20-trellis-i18n-chinese-support/research/sync-call-chain.md","reason":"Existing locale source-selection and init/update call-chain research."}
+{"file":".trellis/tasks/05-20-trellis-i18n-chinese-support/research/template-hashes.md","reason":"Locale-agnostic landed path/hash contract for workflow language switching."}
+{"file":".trellis/tasks/07-27-i18n-workflow-pr1b/research/workflow-runtime-parser-audit.md","reason":"Audit of every English-heading-dependent runtime parser and recommended locale-neutral boundary."}
+{"file":".trellis/tasks/07-27-i18n-workflow-pr1b/research/workflow-structure-and-drift-plan.md","reason":"Protected-token taxonomy and structural comparator design."}
+{"file":".trellis/tasks/07-27-i18n-workflow-pr1b/research/workflow-init-update-test-plan.md","reason":"Complete locale landing, hash, runtime, and idempotency test matrix."}

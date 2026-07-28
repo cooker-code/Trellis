@@ -32,6 +32,7 @@ from .config import (
     validate_package,
 )
 from .git import branch_exists_locally, resolve_default_branch, run_git
+from .i18n import t
 from .io import read_json, write_json
 from .log import Colors, colored
 from .paths import (
@@ -78,7 +79,7 @@ def ensure_tasks_dir(repo_root: Path) -> Path:
 
     if not tasks_dir.exists():
         tasks_dir.mkdir(parents=True)
-        print(colored(f"Created tasks directory: {tasks_dir}", Colors.GREEN), file=sys.stderr)
+        print(colored(t("task_store.tasks_dir_created", path=tasks_dir), Colors.GREEN), file=sys.stderr)
 
     if not archive_dir.exists():
         archive_dir.mkdir(parents=True)
@@ -229,7 +230,7 @@ def cmd_create(args: argparse.Namespace) -> int:
     repo_root = get_repo_root()
 
     if not args.title:
-        print(colored("Error: title is required", Colors.RED), file=sys.stderr)
+        print(colored(t("task_store.title_required"), Colors.RED), file=sys.stderr)
         return 1
 
     # Validate --meta (CLI source: fail-fast, before any directory is created)
@@ -242,13 +243,13 @@ def cmd_create(args: argparse.Namespace) -> int:
     if not is_monorepo(repo_root):
         # Single-repo: ignore --package, no package prefix
         if package:
-            print(colored(f"Warning: --package ignored in single-repo project", Colors.YELLOW), file=sys.stderr)
+            print(colored(t("task_store.package_ignored"), Colors.YELLOW), file=sys.stderr)
         package = None
     elif package:
         if not validate_package(package, repo_root):
             packages = get_packages(repo_root)
             available = ", ".join(sorted(packages.keys())) if packages else "(none)"
-            print(colored(f"Error: unknown package '{package}'. Available: {available}", Colors.RED), file=sys.stderr)
+            print(colored(t("task_store.unknown_package", package=package, available=available), Colors.RED), file=sys.stderr)
             return 1
     else:
         # Inferred: default_package → None (no task.json yet for create)
@@ -259,7 +260,7 @@ def cmd_create(args: argparse.Namespace) -> int:
     if not assignee:
         assignee = get_developer(repo_root)
         if not assignee:
-            print(colored("Error: No developer set. Run init_developer.py first or use --assignee", Colors.RED), file=sys.stderr)
+            print(colored(t("task_store.no_developer"), Colors.RED), file=sys.stderr)
             return 1
 
     ensure_tasks_dir(repo_root)
@@ -270,7 +271,7 @@ def cmd_create(args: argparse.Namespace) -> int:
     # Generate slug if not provided
     slug = args.slug or _slugify(args.title)
     if not slug:
-        print(colored("Error: could not generate slug from title", Colors.RED), file=sys.stderr)
+        print(colored(t("task_store.slug_failed"), Colors.RED), file=sys.stderr)
         return 1
 
     # Create task directory with MM-DD-slug format
@@ -310,13 +311,13 @@ def cmd_create(args: argparse.Namespace) -> int:
 
     archived_task_dir = _find_archived_task_by_dir_name(tasks_dir, dir_name)
     if archived_task_dir:
-        print(colored(f"Error: Task already archived: {dir_name}", Colors.RED), file=sys.stderr)
-        print(f"Archived at: {_repo_relative_path(archived_task_dir, repo_root)}", file=sys.stderr)
-        print("Use a new slug if you intend to create a new task.", file=sys.stderr)
+        print(colored(t("task_store.already_archived", task=dir_name), Colors.RED), file=sys.stderr)
+        print(t("task_store.archived_at", path=_repo_relative_path(archived_task_dir, repo_root)), file=sys.stderr)
+        print(t("task_store.new_slug_hint"), file=sys.stderr)
         return 1
 
     if task_dir.exists():
-        print(colored(f"Warning: Task directory already exists: {dir_name}", Colors.YELLOW), file=sys.stderr)
+        print(colored(t("task_store.directory_exists", task=dir_name), Colors.YELLOW), file=sys.stderr)
     else:
         task_dir.mkdir(parents=True)
 
@@ -412,7 +413,7 @@ def cmd_create(args: argparse.Namespace) -> int:
         parent_dir = resolve_task_dir(args.parent, repo_root)
         parent_json_path = parent_dir / FILE_TASK_JSON
         if not parent_json_path.is_file():
-            print(colored(f"Warning: Parent task.json not found: {args.parent}", Colors.YELLOW), file=sys.stderr)
+            print(colored(t("task_store.parent_not_found", parent=args.parent), Colors.YELLOW), file=sys.stderr)
         else:
             parent_data = read_json(parent_json_path)
             if parent_data:
@@ -427,7 +428,7 @@ def cmd_create(args: argparse.Namespace) -> int:
                 task_data["parent"] = parent_dir.name
                 write_json(task_json_path, task_data)
 
-                print(colored(f"Linked as child of: {parent_dir.name}", Colors.GREEN), file=sys.stderr)
+                print(colored(t("task_store.linked_child", parent=parent_dir.name), Colors.GREEN), file=sys.stderr)
 
     # Auto-activate the new task so the per-turn breadcrumb fires planning
     # state. Best-effort: gracefully degrade if no session identity (CLI run
@@ -486,18 +487,18 @@ def cmd_create(args: argparse.Namespace) -> int:
                                 file=sys.stderr,
                             )
 
-    print(colored(f"Created task: {dir_name}", Colors.GREEN), file=sys.stderr)
+    print(colored(t("task_store.created", task=dir_name), Colors.GREEN), file=sys.stderr)
     print("", file=sys.stderr)
-    print(colored("Next steps:", Colors.BLUE), file=sys.stderr)
-    print("  - Fill prd.md with requirements and acceptance criteria", file=sys.stderr)
-    print("  - Lightweight task: PRD-only is valid", file=sys.stderr)
-    print("  - Complex task: add design.md and implement.md before task.py start", file=sys.stderr)
+    print(colored(t("task_store.next_steps"), Colors.BLUE), file=sys.stderr)
+    print(t("task_store.next_fill_prd"), file=sys.stderr)
+    print(t("task_store.next_lightweight"), file=sys.stderr)
+    print(t("task_store.next_complex"), file=sys.stderr)
     if seeded_jsonl:
         print(
-            "  - Curate implement.jsonl / check.jsonl as spec/research manifests when sub-agents need context",
+            t("task_store.next_curate_jsonl"),
             file=sys.stderr,
         )
-    print("  - Use /trellis:continue or phase context to decide the next step", file=sys.stderr)
+    print(t("task_store.next_continue"), file=sys.stderr)
     print("", file=sys.stderr)
 
     # Output relative path for script chaining
@@ -517,7 +518,7 @@ def cmd_archive(args: argparse.Namespace) -> int:
     task_name = args.name
 
     if not task_name:
-        print(colored("Error: Task name is required", Colors.RED), file=sys.stderr)
+        print(colored(t("task_store.task_name_required"), Colors.RED), file=sys.stderr)
         return 1
 
     tasks_dir = get_tasks_dir(repo_root)
@@ -526,12 +527,12 @@ def cmd_archive(args: argparse.Namespace) -> int:
     task_dir = resolve_task_dir(task_name, repo_root)
 
     if not task_dir or not task_dir.is_dir():
-        print(colored(f"Error: Task not found: {task_name}", Colors.RED), file=sys.stderr)
-        print("Active tasks:", file=sys.stderr)
+        print(colored(t("task_store.task_not_found", task=task_name), Colors.RED), file=sys.stderr)
+        print(t("task_store.active_tasks"), file=sys.stderr)
         # Import lazily to avoid circular dependency
         from .tasks import iter_active_tasks
-        for t in iter_active_tasks(tasks_dir):
-            print(f"  - {t.dir_name}/", file=sys.stderr)
+        for task in iter_active_tasks(tasks_dir):
+            print(f"  - {task.dir_name}/", file=sys.stderr)
         return 1
 
     # Refuse to archive anything that isn't a real task directly under
@@ -601,15 +602,14 @@ def cmd_archive(args: argparse.Namespace) -> int:
     if "archived_to" in result:
         archive_dest = Path(result["archived_to"])
         year_month = archive_dest.parent.name
-        print(colored(f"Archived: {dir_name} -> archive/{year_month}/", Colors.GREEN), file=sys.stderr)
+        print(colored(t("task_store.archived", task=dir_name, month=year_month), Colors.GREEN), file=sys.stderr)
 
         # Auto-commit unless --no-commit
         if not getattr(args, "no_commit", False):
             if not _auto_commit_archive(dir_name, repo_root, modified_children):
                 print(
                     colored(
-                        "Archive moved on disk, but git auto-commit did not complete. "
-                        "Resolve `git status` before continuing.",
+                        t("task_store.archive_commit_failed"),
                         Colors.RED,
                     ),
                     file=sys.stderr,
@@ -650,7 +650,7 @@ def _auto_commit_archive(
     """
     if not get_session_auto_commit(repo_root):
         print(
-            "[OK] session_auto_commit: false — skipping git stage/commit.",
+            t("git.auto_commit_disabled"),
             file=sys.stderr,
         )
         return True
@@ -666,7 +666,7 @@ def _auto_commit_archive(
         repo_root, task_name=task_name, modified_children=modified_children
     )
     if not paths:
-        print("[OK] No task changes to commit.", file=sys.stderr)
+        print(t("git.no_task_changes"), file=sys.stderr)
         return True
 
     success, _, err = safe_git_add(paths, repo_root)
@@ -675,7 +675,7 @@ def _auto_commit_archive(
             print_gitignore_warning(paths)
         else:
             print(
-                f"[WARN] git add failed: {err.strip() if err else 'unknown error'}",
+                t("git.add_failed", error=err.strip() if err else t("common.unknown_error")),
                 file=sys.stderr,
             )
         return not source_was_tracked
@@ -699,16 +699,16 @@ def _auto_commit_archive(
         cwd=repo_root,
     )
     if rc == 0:
-        print("[OK] No task changes to commit.", file=sys.stderr)
+        print(t("git.no_task_changes"), file=sys.stderr)
         return True
 
     commit_msg = f"chore(task): archive {task_name}"
     rc, _, err = run_git(["commit", "-m", commit_msg], cwd=repo_root)
     if rc == 0:
-        print(f"[OK] Auto-committed: {commit_msg}", file=sys.stderr)
+        print(t("git.auto_committed", message=commit_msg), file=sys.stderr)
         return True
     else:
-        print(f"[WARN] Auto-commit failed: {err.strip()}", file=sys.stderr)
+        print(t("git.auto_commit_failed", error=err.strip()), file=sys.stderr)
         return not source_was_tracked
 
 
@@ -727,24 +727,24 @@ def cmd_add_subtask(args: argparse.Namespace) -> int:
     child_json_path = child_dir / FILE_TASK_JSON
 
     if not parent_json_path.is_file():
-        print(colored(f"Error: Parent task.json not found: {args.parent_dir}", Colors.RED), file=sys.stderr)
+        print(colored(t("task_store.parent_json_missing", parent=args.parent_dir), Colors.RED), file=sys.stderr)
         return 1
 
     if not child_json_path.is_file():
-        print(colored(f"Error: Child task.json not found: {args.child_dir}", Colors.RED), file=sys.stderr)
+        print(colored(t("task_store.child_json_missing", child=args.child_dir), Colors.RED), file=sys.stderr)
         return 1
 
     parent_data = read_json(parent_json_path)
     child_data = read_json(child_json_path)
 
     if not parent_data or not child_data:
-        print(colored("Error: Failed to read task.json", Colors.RED), file=sys.stderr)
+        print(colored(t("task_store.read_json_failed"), Colors.RED), file=sys.stderr)
         return 1
 
     # Check if child already has a parent
     existing_parent = child_data.get("parent")
     if existing_parent:
-        print(colored(f"Error: Child task already has a parent: {existing_parent}", Colors.RED), file=sys.stderr)
+        print(colored(t("task_store.child_has_parent", parent=existing_parent), Colors.RED), file=sys.stderr)
         return 1
 
     # Add child to parent's children list
@@ -761,7 +761,7 @@ def cmd_add_subtask(args: argparse.Namespace) -> int:
     write_json(parent_json_path, parent_data)
     write_json(child_json_path, child_data)
 
-    print(colored(f"Linked: {child_dir.name} -> {parent_dir.name}", Colors.GREEN), file=sys.stderr)
+    print(colored(t("task_store.linked", child=child_dir.name, parent=parent_dir.name), Colors.GREEN), file=sys.stderr)
     return 0
 
 
@@ -780,18 +780,18 @@ def cmd_remove_subtask(args: argparse.Namespace) -> int:
     child_json_path = child_dir / FILE_TASK_JSON
 
     if not parent_json_path.is_file():
-        print(colored(f"Error: Parent task.json not found: {args.parent_dir}", Colors.RED), file=sys.stderr)
+        print(colored(t("task_store.parent_json_missing", parent=args.parent_dir), Colors.RED), file=sys.stderr)
         return 1
 
     if not child_json_path.is_file():
-        print(colored(f"Error: Child task.json not found: {args.child_dir}", Colors.RED), file=sys.stderr)
+        print(colored(t("task_store.child_json_missing", child=args.child_dir), Colors.RED), file=sys.stderr)
         return 1
 
     parent_data = read_json(parent_json_path)
     child_data = read_json(child_json_path)
 
     if not parent_data or not child_data:
-        print(colored("Error: Failed to read task.json", Colors.RED), file=sys.stderr)
+        print(colored(t("task_store.read_json_failed"), Colors.RED), file=sys.stderr)
         return 1
 
     # Remove child from parent's children list
@@ -808,7 +808,7 @@ def cmd_remove_subtask(args: argparse.Namespace) -> int:
     write_json(parent_json_path, parent_data)
     write_json(child_json_path, child_data)
 
-    print(colored(f"Unlinked: {child_dir.name} from {parent_dir.name}", Colors.GREEN), file=sys.stderr)
+    print(colored(t("task_store.unlinked", child=child_dir.name, parent=parent_dir.name), Colors.GREEN), file=sys.stderr)
     return 0
 
 
@@ -823,13 +823,13 @@ def cmd_set_branch(args: argparse.Namespace) -> int:
     branch = args.branch
 
     if not branch:
-        print(colored("Error: Missing arguments", Colors.RED))
-        print("Usage: python3 task.py set-branch <task-dir> <branch-name>")
+        print(colored(t("task_store.missing_arguments"), Colors.RED))
+        print(t("task_store.set_branch_usage"))
         return 1
 
     task_json = target_dir / FILE_TASK_JSON
     if not task_json.is_file():
-        print(colored(f"Error: task.json not found at {target_dir}", Colors.RED))
+        print(colored(t("task_store.task_json_not_found", path=target_dir), Colors.RED))
         return 1
 
     data = read_json(task_json)
@@ -839,7 +839,7 @@ def cmd_set_branch(args: argparse.Namespace) -> int:
     data["branch"] = branch
     write_json(task_json, data)
 
-    print(colored(f"✓ Branch set to: {branch}", Colors.GREEN))
+    print(colored(t("task_store.branch_set", branch=branch), Colors.GREEN))
     return 0
 
 
@@ -854,16 +854,16 @@ def cmd_set_base_branch(args: argparse.Namespace) -> int:
     base_branch = args.base_branch
 
     if not base_branch:
-        print(colored("Error: Missing arguments", Colors.RED))
-        print("Usage: python3 task.py set-base-branch <task-dir> <base-branch>")
-        print("Example: python3 task.py set-base-branch <dir> develop")
+        print(colored(t("task_store.missing_arguments"), Colors.RED))
+        print(t("task_store.set_base_usage"))
+        print(t("task_store.set_base_example"))
         print()
-        print("This sets the target branch for PR (the branch your feature will merge into).")
+        print(t("task_store.set_base_hint"))
         return 1
 
     task_json = target_dir / FILE_TASK_JSON
     if not task_json.is_file():
-        print(colored(f"Error: task.json not found at {target_dir}", Colors.RED))
+        print(colored(t("task_store.task_json_not_found", path=target_dir), Colors.RED))
         return 1
 
     data = read_json(task_json)
@@ -873,8 +873,8 @@ def cmd_set_base_branch(args: argparse.Namespace) -> int:
     data["base_branch"] = base_branch
     write_json(task_json, data)
 
-    print(colored(f"✓ Base branch set to: {base_branch}", Colors.GREEN))
-    print(f"  PR will target: {base_branch}")
+    print(colored(t("task_store.base_branch_set", branch=base_branch), Colors.GREEN))
+    print(t("task_store.pr_target", branch=base_branch))
     return 0
 
 
@@ -889,13 +889,13 @@ def cmd_set_scope(args: argparse.Namespace) -> int:
     scope = args.scope
 
     if not scope:
-        print(colored("Error: Missing arguments", Colors.RED))
-        print("Usage: python3 task.py set-scope <task-dir> <scope>")
+        print(colored(t("task_store.missing_arguments"), Colors.RED))
+        print(t("task_store.set_scope_usage"))
         return 1
 
     task_json = target_dir / FILE_TASK_JSON
     if not task_json.is_file():
-        print(colored(f"Error: task.json not found at {target_dir}", Colors.RED))
+        print(colored(t("task_store.task_json_not_found", path=target_dir), Colors.RED))
         return 1
 
     data = read_json(task_json)
@@ -905,7 +905,7 @@ def cmd_set_scope(args: argparse.Namespace) -> int:
     data["scope"] = scope
     write_json(task_json, data)
 
-    print(colored(f"✓ Scope set to: {scope}", Colors.GREEN))
+    print(colored(t("task_store.scope_set", scope=scope), Colors.GREEN))
     return 0
 
 

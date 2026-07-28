@@ -6,6 +6,7 @@ import {
   getCopilotInstructions,
   getHooksConfig,
 } from "../templates/copilot/index.js";
+import { DEFAULT_LANGUAGE, type SupportedLanguage } from "../utils/i18n.js";
 import { ensureDir, writeFile } from "../utils/file-writer.js";
 import {
   resolvePlaceholders,
@@ -28,7 +29,10 @@ import {
  * - hooks config — hooks.json
  * - copilot-instructions.md — repository-wide review guidance
  */
-export async function configureCopilot(cwd: string): Promise<void> {
+export async function configureCopilot(
+  cwd: string,
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): Promise<void> {
   const config = AI_TOOLS.copilot;
   const ctx = config.templateContext;
   const copilotRoot = path.join(cwd, ".github", "copilot");
@@ -41,7 +45,7 @@ export async function configureCopilot(cwd: string): Promise<void> {
 
   const promptsDir = path.join(cwd, ".github", "prompts");
   ensureDir(promptsDir);
-  for (const cmd of resolveCommands(ctx)) {
+  for (const cmd of resolveCommands(ctx, language)) {
     await writeFile(
       path.join(promptsDir, `${cmd.name}.prompt.md`),
       cmd.content,
@@ -50,8 +54,8 @@ export async function configureCopilot(cwd: string): Promise<void> {
 
   await writeSkills(
     path.join(cwd, ".github", "skills"),
-    resolveSkills(ctx),
-    resolveBundledSkills(ctx),
+    resolveSkills(ctx, language),
+    resolveBundledSkills(ctx, language),
   );
 
   const agentsDir = path.join(cwd, ".github", "agents");
@@ -64,7 +68,8 @@ export async function configureCopilot(cwd: string): Promise<void> {
   const { getAllAgents: getCursorAgents } =
     await import("../templates/cursor/index.js");
   for (const agent of applyPullBasedPreludeMarkdown(
-    normalizeCopilotMarkdownAgents(getCursorAgents()),
+    normalizeCopilotMarkdownAgents(getCursorAgents(language)),
+    language,
   )) {
     await writeFile(
       path.join(agentsDir, `${agent.name}.agent.md`),

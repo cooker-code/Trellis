@@ -1,0 +1,97 @@
+# 思考指南
+
+> **目的**：拓展思考范围，发现可能遗漏的问题。
+
+---
+
+## 为什么需要思考指南？
+
+**大多数 bug 和技术债来自“没想到这一点”**，而不是能力不足：
+
+- 没想到 layer 边界会发生什么 → cross-layer bug
+- 没想到代码模式会重复 → 到处都是重复代码
+- 没想到 edge case → runtime error
+- 没想到未来维护者 → 代码难以阅读
+
+这些指南帮助你在编码前**提出正确的问题**。
+
+---
+
+## 可用指南
+
+| 指南 | 目的 | 使用时机 |
+|------|------|----------|
+| [代码复用思考指南](./code-reuse-thinking-guide.md) | 识别模式并减少重复 | 发现重复模式时 |
+| [跨层思考指南](./cross-layer-thinking-guide.md) | 梳理数据在各层之间的流动 | Feature 跨越多个 layer 时 |
+
+---
+
+## 快速参考：思考触发条件
+
+### 何时思考 Cross-Layer 问题
+
+- [ ] Feature 涉及 3 个以上 layer（API、Service、Component、Database）
+- [ ] 数据格式在 layer 之间变化
+- [ ] 多个 consumer 需要同一份数据
+- [ ] 不确定某段逻辑应放在哪里
+- [ ] 正在新增 event kind、JSONL record、RPC payload 或 config field
+- [ ] UI / command 代码开始直接 cast raw payload field
+
+→ 阅读 [跨层思考指南](./cross-layer-thinking-guide.md)
+
+### 何时思考代码复用
+
+- [ ] 正在编写与现有代码相似的内容
+- [ ] 同一种模式重复出现 3 次以上
+- [ ] 正在多个位置新增同一个 field
+- [ ] **正在修改任何 constant 或 config**
+- [ ] **正在创建新的 utility/helper function** ← 先搜索！
+- [ ] 两个文件通过本地 cast 读取同一个 untyped payload field
+- [ ] 多个 branch 根据 `kind` / `action` 更新同一份 derived state
+
+→ 阅读 [代码复用思考指南](./code-reuse-thinking-guide.md)
+
+### 验证 AI Cross-Review 结果时
+
+- [ ] Reviewer 声称“用户输入可能是恶意的” → 检查真实数据源（internal manifest？user config？external API？）
+- [ ] Reviewer 指出“缺少 validation” → 数据是否来自可信的内部来源？
+- [ ] Reviewer 说“行为发生变化” → 阅读代码注释，确认是否为有意设计
+- [ ] Reviewer 认为测试有 bug → 在脑中删除被测 feature；测试是否仍会通过？如果是，则测试是 tautological
+
+**常见 AI reviewer 误报模式**：
+1. **Trust boundary 混淆**：把内部数据（bundled JSON manifest）当成不可信外部输入
+2. **忽略设计注释**：把代码注释中记录的有意行为误判为 bug
+3. **误读变量**：没有追踪变量的真实定义（例如 Map 按 path 而不是 name 建 key）
+
+**验证规则**：每个 CRITICAL/WARNING finding 都必须对照真实代码验证后再排序。AI review 约有 35% 误报，应预留核验时间。
+
+---
+
+## 修改前规则（CRITICAL）
+
+> **修改任何值之前，始终先搜索！**
+
+```bash
+# Search for the value you're about to change
+grep -r "value_to_change" .
+```
+
+这个习惯可以防止大多数“忘了同步修改 X”的 bug。
+
+---
+
+## 如何使用本目录
+
+1. **编码前**：浏览相关思考指南
+2. **编码中**：感觉出现重复或复杂性时，重新查看指南
+3. **修复 bug 后**：把新洞见补充到相关指南（从错误中学习）
+
+---
+
+## 贡献
+
+发现新的“没想到这一点”场景？把它加入相关指南。
+
+---
+
+**核心原则**：思考 30 分钟，可以节省 3 小时调试。

@@ -5,7 +5,7 @@
  * Structure templates use .md.txt extension as they are generic templates.
  */
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -18,6 +18,38 @@ const __dirname = dirname(__filename);
 function readLocalTemplate(filename: string): string {
   const filePath = join(__dirname, filename);
   return readFileSync(filePath, "utf-8");
+}
+
+const localizedSpecTemplateCache = new Map<string, string>();
+
+/**
+ * Read a logical spec template with a locale overlay.
+ *
+ * English `*.md.txt` files define the destination catalog. A localized source
+ * such as `index.zh.md.txt` is selected for `zh` but still lands as `index.md`.
+ * Missing locale files fall back to the exact English source bytes.
+ */
+export function getSpecTemplateContent(
+  englishRelativePath: string,
+  language: string = "en",
+): string {
+  const cacheKey = `${language}:${englishRelativePath}`;
+  const cached = localizedSpecTemplateCache.get(cacheKey);
+  if (cached !== undefined) return cached;
+
+  let selectedPath = englishRelativePath;
+  if (language !== "en" && englishRelativePath.endsWith(".md.txt")) {
+    const localizedPath = englishRelativePath.replace(
+      /\.md\.txt$/,
+      `.${language}.md.txt`,
+    );
+    if (existsSync(join(__dirname, localizedPath)))
+      selectedPath = localizedPath;
+  }
+
+  const content = readLocalTemplate(selectedPath);
+  localizedSpecTemplateCache.set(cacheKey, content);
+  return content;
 }
 
 // =============================================================================

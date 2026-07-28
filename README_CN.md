@@ -66,6 +66,19 @@ trellis init --cursor --opencode --codex -u your-name
 
 查看 [快速开始](https://docs.trytrellis.app/zh/start/install-and-first-task) 与 [支持平台](https://docs.trytrellis.app/zh/advanced/multi-platform) 指南以了解详细配置步骤。
 
+## 工作流语言
+
+Trellis 的原生内容提供英文（默认）和简体中文版本：workflow 与平台 prompts、多文件 bundled skills 及 references、默认 spec 模板，以及核心 Python 脚本面向用户的消息。可通过 `--language zh` 让单次 init/update 使用中文：
+
+```bash
+trellis init --language zh -u your-name
+trellis update --language zh
+```
+
+若要持久使用中文，请在 `.trellis/config.yaml` 顶层添加 `language: zh`，然后运行 `trellis update`；改为 `language: en` 可切回英文。生成文件的路径和命令不会变化；缺少某个中文模板时，Trellis 会静默回落到英文。
+
+v0.6 beta 的中文基线已经交付。本地化 sidecars 会写入相同的 locale-neutral 路径；command 名称、JSON 契约、task status 值和原始路径输出保持稳定。
+
 ## 如何使用
 
 使用流程非常简单：

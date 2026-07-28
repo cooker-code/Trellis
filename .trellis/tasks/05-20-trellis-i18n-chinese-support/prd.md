@@ -2,7 +2,7 @@
 
 ## Goal
 
-为 Trellis 工作流系统增加中文支持。让 `.trellis/` 目录下面向人类阅读的文件（workflow.md、agents/*.md、commands、skills、CLI 输出文案等）可以通过一个配置开关在中英文之间切换，**不破坏现有架构**，**不阻碍跟上游 GitHub 仓库的同步与合并**。
+为 Trellis 工作流系统增加中文支持。让 `.trellis/` 目录下面向人类/LLM 阅读的文件（workflow.md、agents/*.md、commands、skills、bundled-skills、spec 模板，以及 Python 脚本用户文案）可以通过一个配置开关在中英文之间切换，**不破坏现有架构**，**不阻碍跟上游 GitHub 仓库的同步与合并**。CLI TypeScript 文案暂缓，当前只实施 PR1-B、PR2、PR3。
 
 ## What I already know
 
@@ -19,7 +19,7 @@
 
 ## Assumptions (temporary)
 
-- 用户希望覆盖的"中文化"范围至少包含：`.trellis/workflow.md`、`.trellis/agents/*.md`、用户能在交互中读到的 CLI 提示文案、skills/commands 的描述
+- 用户确认当前中文化范围包含：完整 `.trellis/workflow.md`、agents、common commands/skills、bundled-skills、spec 模板和 Python 脚本用户文案；CLI TypeScript 文案暂缓
 - 不需要翻译："技术名词"（命令名、变量名、字段名、JSON key、Python 标识符、git 分支名等）—— 用户已明确说明
 - 不需要翻译：代码逻辑、内部 docstring（除非影响 LLM 行为）
 - 配置项的位置应该在 `.trellis/config.yaml`（已经是项目级配置文件）
@@ -29,6 +29,8 @@
 1. ~~**存储方式**~~ ✅ 已决：并列后缀文件
 2. ~~**范围**~~ ✅ 已决：L2
 3. ~~**运行时机**~~ ✅ 已决：sync 时落地
+4. ~~**CLI 汉化边界**~~ ✅ 已决：当前暂不处理 CLI TypeScript 文案；只实施 PR1-B、PR2、PR3
+5. ~~**翻译深度**~~ ✅ 已决：翻译全部面向人类/LLM 的自然语言，包括 HTML/Markdown 注释；专有名称和技术标识符保持英文
 
 ## Decision (ADR-lite)
 
@@ -45,16 +47,18 @@
 - ⚠️ 模板文件数量翻倍（每个翻译过的文件多一份）
 - ⚠️ 需要工具检测中英版本"漂移"（英文更新后中文未跟上）
 
-### 决策 2：翻译范围 = L2
+### 决策 2：翻译范围 = L2（三个内容 PR）
 
 **Context**：模板内可翻译文件分布在多个目录，价值最高的是 LLM 每轮都读到的指令文档。CLI 平台模板（claude/codex/...）是 IDE 适配层，原文短小且少阅读，性价比低；CLI TypeScript 输出是少量交互提示，引入 i18n runtime 复杂度高。
 
-**Decision**：覆盖 `templates/trellis/`（workflow + scripts + agents）、`templates/common/{commands,skills,bundled-skills}/` 下所有 markdown、`templates/markdown/spec/` 下 spec 模板、以及 Python 脚本中面向用户的 print/error 文案。**不覆盖**各平台目录（claude/codex/cursor 等）和 CLI TypeScript。
+**原 Decision**：覆盖 `templates/trellis/`（workflow + scripts + agents）、`templates/common/{commands,skills,bundled-skills}/` 下所有 markdown、`templates/markdown/spec/` 下 spec 模板、以及 Python 脚本中面向用户的 print/error 文案。原计划不覆盖各平台目录和 CLI TypeScript。
+
+**范围确认（2026-07-27）**：用户要求先完成前三个内容 PR：PR1-B 完整翻译 `workflow.md`，PR2 覆盖 agents + common commands/skills，PR3 覆盖 bundled-skills + spec 模板 + Python 用户文案。CLI TypeScript command/help/prompt/output 暂缓。技术标识符、命令名、flag、路径、JSON key 保持英文。
 
 **Consequences**：
 - ✅ 抓住"用户/LLM 每轮必读"的最大价值文件
 - ✅ 不动 CLI TypeScript，避开 i18n runtime 重构
-- ⏳ 各平台的 commands/skills 暂英文，可作 L3 后续追加
+- ✅ common commands/skills 在聚合层按 locale 选择，各平台最终落地内容同步切换
 - ⚠️ Python 脚本里的字符串需要轻量 i18n 机制（dict + locale 选择）
 
 ### 决策 3：运行时机 = Sync 时落地
@@ -69,6 +73,12 @@
 - ⚠️ 用户必须 `trellis sync` 才能切换语言生效（需在文档强调）
 - ⚠️ 中英两份模板必须保持文件路径的一一对应
 
+### 决策 4：翻译全部自然语言，保留专有名称
+
+**Decision**：`*.zh.md` 中所有面向人类或 LLM 的自然语言正文、表格、提示和 HTML/Markdown 注释均翻译为中文。产品名、平台名、Trellis 领域术语及技术标识符保持英文，避免同一概念出现多个中文别名，也避免破坏 runtime parser。
+
+**必须原样保留**：命令/flag、路径、环境变量、JSON key、状态值、代码标识符、占位符、Phase/Step 编号、`[workflow-state:*]` 标签、平台 marker，以及 Claude Code / Cursor / Codex / Pi 等平台名。
+
 ## Requirements
 
 ### R1 配置与回落
@@ -82,7 +92,9 @@
 - [ ] `.template-hashes.json` 对 i18n 透明：key 仍是脱后缀落地路径（如 `.trellis/workflow.md`），value 是落地内容的 SHA256（中文模式下=中文 hash，英文模式下=英文 hash）。i18n 仅在 `collectTemplateFiles` 上游做"源选择"，hash 系统零改动。详见 `research/template-hashes.md`。
 
 ### R3 内容覆盖（L2）
-- [ ] **PR1 仅翻译 `templates/trellis/workflow.md`**（破冰）；其他文件交后续 PR 分批补齐
+- [ ] **PR1-B**：把当前占位 `workflow.zh.md` 替换为完整中文翻译（包括自然语言注释），并验证所有 runtime 标记结构与英文版等价
+- [ ] **PR2**：翻译 trellis agents、common commands 和 common single-file skills，并让所有平台落地内容按 locale 选择
+- [ ] **PR3**：翻译 bundled-skills 全部 Markdown/reference、spec 模板，并完成 Python 用户文案迁移
 - [ ] 提供翻译路线图（在 PRD / docs-site 列出待译文件清单）
 
 ### R4 Python 脚本 i18n
@@ -103,7 +115,8 @@
 
 ## Acceptance Criteria
 
-- [ ] 在 `.trellis/config.yaml` 设 `language: zh` 后跑 `trellis sync`，`.trellis/workflow.md` 是中文内容
+- [ ] 在 `.trellis/config.yaml` 设 `language: zh` 后跑 `trellis update`，`.trellis/workflow.md` 是完整中文内容（不存在占位英文正文）
+- [ ] Claude/Cursor/Pi/Codex 等平台最终生成的 common commands/skills 为中文，文件名和调用方式不变
 - [ ] 切回 `language: en` 后跑 `trellis sync`，`.trellis/workflow.md` 与上游 mindfoldhq/trellis main 完全一致
 - [ ] `git merge upstream/main` 不产生冲突（前提：上游未改动 `*.zh.*` 文件——按定义不会）
 - [ ] 删除某个 `*.zh.md` 后跑 `trellis sync language=zh`，对应文件回落英文版（不报错）
@@ -114,14 +127,15 @@
 
 ## Implementation Plan（小 PR 拆分）
 
-**PR1 — i18n 机制 + workflow.md 中文版（破冰）**
-- `packages/cli/src/templates/trellis/config.yaml` 增 `language: en` 注释样例
-- `packages/cli/src/configurators/` 加入 locale 解析 + sync 时选源文件的逻辑
-- 新增 `packages/cli/src/templates/trellis/workflow.zh.md`（人工 + LLM 翻译，user review）
-- `packages/cli/scripts/check-i18n-drift.js` + `pnpm run i18n:check`
-- `packages/cli/src/templates/trellis/scripts/common/i18n.py` 框架 + `init_developer.py` 试点
-- 单元测试：sync locale 选择 / 回落 / hash 跟踪 / drift 检测
-- 文档更新：README / README_CN
+**PR1-A — i18n 机制骨架（已合入 main，内容不完整）**
+- 已完成 locale 解析、`workflow.<locale>.md` 选择、hash 透明、drift 脚本和 Python i18n 骨架
+- 当前 `workflow.zh.md` 仅前约 38 行中文，其余为英文占位，不能视为中文支持完成
+
+**PR1-B — 完整 workflow.md 中文翻译 + 结构等价验证**
+- 完整翻译 `packages/cli/src/templates/trellis/workflow.zh.md` 的人类/LLM 可读正文和注释
+- 保持命令、路径、状态名、占位符、Phase/Step 编号、workflow-state 标签和平台 marker 不变
+- 新增中英文结构等价测试 + 中文落地 integration test
+- 更新 drift 检测和 README 使用说明
 
 **PR2 — 扩展到 trellis/agents 与 common/commands+skills**
 - 新增 `templates/trellis/agents/{implement,check,research}.zh.md`
@@ -136,17 +150,15 @@
 - docs-site i18n 路线图页面
 
 **未来 PR (out of MVP)**
-- L3：各平台模板（claude/codex/cursor/...）
-- CLI TypeScript runtime i18n
+- L3：各平台专属模板（claude/codex/cursor/...）中不由 common templates 生成的内容
 - 新增更多语言（ja / es / fr）
 
 ## Out of Scope（暂不做）
 
 - 翻译 spec 内的用户业务文档（这些是用户自己写的，不是模板）
 - 翻译 `docs-site` 全站
-- 翻译 CLI 内部错误堆栈、调试日志（`console.error` 等）
+- CLI TypeScript 的 command/option/help、交互 prompt、warning/error、summary、内部异常栈和调试日志（本轮全部暂缓）
 - 翻译各平台目录（claude/codex/cursor/...）的提示模板
-- CLI TypeScript runtime i18n（弹出/确认提示等）
 - 多于中英两种语言（先 i18n 框架到位，新增语言留作后续）
 - 自动机器翻译——翻译文本由人工/LLM 离线产生并 review，不在运行时调用翻译 API
 

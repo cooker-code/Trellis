@@ -15,6 +15,16 @@ import {
   validateLanguage,
 } from "../../src/utils/i18n.js";
 import { getWorkflowTemplate } from "../../src/templates/trellis/index.js";
+import { getSpecTemplateContent } from "../../src/templates/markdown/index.js";
+
+const englishWorkflowSource = fs.readFileSync(
+  new URL("../../src/templates/trellis/workflow.md", import.meta.url),
+  "utf-8",
+);
+const chineseWorkflowSource = fs.readFileSync(
+  new URL("../../src/templates/trellis/workflow.zh.md", import.meta.url),
+  "utf-8",
+);
 
 // =============================================================================
 // validateLanguage
@@ -159,23 +169,44 @@ describe("resolveLanguage", () => {
 // getWorkflowTemplate (locale source selection)
 // =============================================================================
 
+describe("getSpecTemplateContent", () => {
+  it("selects compound-suffix spec sources without locale cache leakage", () => {
+    const source = "spec/backend/index.md.txt";
+    const english = fs.readFileSync(
+      new URL(`../../src/templates/markdown/${source}`, import.meta.url),
+      "utf-8",
+    );
+    const chinese = fs.readFileSync(
+      new URL(
+        "../../src/templates/markdown/spec/backend/index.zh.md.txt",
+        import.meta.url,
+      ),
+      "utf-8",
+    );
+
+    expect(getSpecTemplateContent(source, "en")).toBe(english);
+    expect(getSpecTemplateContent(source, "zh")).toBe(chinese);
+    expect(getSpecTemplateContent(source, "en")).toBe(english);
+    expect(getSpecTemplateContent(source, "ja")).toBe(english);
+  });
+});
+
 describe("getWorkflowTemplate", () => {
-  it("returns English content for default locale", () => {
-    const en = getWorkflowTemplate("en");
-    expect(en.length).toBeGreaterThan(0);
-    expect(en.startsWith("# Development Workflow")).toBe(true);
+  it("returns the exact English source for default locale", () => {
+    expect(getWorkflowTemplate("en")).toBe(englishWorkflowSource);
   });
 
-  it("returns Chinese content when zh source exists", () => {
+  it("returns the complete Chinese source when zh exists", () => {
     const zh = getWorkflowTemplate("zh");
-    expect(zh.length).toBeGreaterThan(0);
-    // zh template (PR1 placeholder) starts with translated heading.
-    expect(zh.startsWith("# 开发工作流")).toBe(true);
+
+    expect(zh).toBe(chineseWorkflowSource);
+    expect(zh).not.toContain("i18n PR1 placeholder note");
+    expect(zh).toContain("## Phase 2：执行");
+    expect(zh).toContain("#### 3.4 提交改动");
+    expect(zh).toContain("## 自定义 Trellis（适用于 fork）");
   });
 
-  it("falls back to English for unsupported locale", () => {
-    const fallback = getWorkflowTemplate("ja");
-    const en = getWorkflowTemplate("en");
-    expect(fallback).toBe(en);
+  it("falls back to exact English bytes for unsupported locale", () => {
+    expect(getWorkflowTemplate("ja")).toBe(englishWorkflowSource);
   });
 });

@@ -363,6 +363,44 @@ function buildCompactCurrentState(ctx, platformInput, specIndexPaths) {
   return lines.join("\n")
 }
 
+function findPhaseIndexRange(lines) {
+  let exactStart = -1
+  for (let i = 0; i < lines.length; i++) {
+    const stripped = lines[i].trim()
+    if (exactStart === -1 && stripped === "## Phase Index") {
+      exactStart = i
+      continue
+    }
+    if (exactStart !== -1 && stripped === "## Phase 1: Plan") {
+      return [exactStart, i]
+    }
+  }
+  if (exactStart !== -1) return [exactStart, lines.length]
+
+  const noTaskIndex = lines.findIndex(
+    (line) => line.trim() === "[workflow-state:no_task]"
+  )
+  if (noTaskIndex === -1) return null
+
+  let localizedStart = -1
+  for (let i = noTaskIndex - 1; i >= 0; i--) {
+    if (lines[i].trim().startsWith("## ")) {
+      localizedStart = i
+      break
+    }
+  }
+  if (localizedStart === -1) return null
+
+  let localizedEnd = lines.length
+  for (let i = localizedStart + 1; i < lines.length; i++) {
+    if (lines[i].trim().startsWith("## ")) {
+      localizedEnd = i
+      break
+    }
+  }
+  return [localizedStart, localizedEnd]
+}
+
 export function buildSessionContext(ctx, platformInput = null) {
   const directory = ctx.directory
   const contextKey = typeof ctx.getContextKey === "function"
@@ -398,18 +436,9 @@ Trellis compact SessionStart context. Use it to orient the session; load details
       "",
     ]
 
-    let rangeStart = -1
-    let rangeEnd = allLines.length
-    for (let i = 0; i < allLines.length; i++) {
-      const stripped = allLines[i].trim()
-      if (rangeStart === -1 && stripped === "## Phase Index") {
-        rangeStart = i
-      } else if (rangeStart !== -1 && stripped === "## Phase 1: Plan") {
-        rangeEnd = i
-        break
-      }
-    }
-    if (rangeStart !== -1) {
+    const phaseIndexRange = findPhaseIndexRange(allLines)
+    if (phaseIndexRange) {
+      const [rangeStart, rangeEnd] = phaseIndexRange
       const strippedStateBlocks = allLines
         .slice(rangeStart, rangeEnd)
         .join("\n")

@@ -48,6 +48,7 @@ import {
   resolveLanguage,
   validateLanguage,
   DEFAULT_LANGUAGE,
+  type SupportedLanguage,
 } from "../utils/i18n.js";
 import { agentsMdContent } from "../templates/markdown/index.js";
 import {
@@ -857,6 +858,7 @@ async function collectRegistrySpecTemplates(
 
 async function collectTemplateFiles(
   cwd: string,
+  language: SupportedLanguage,
   extraPlatforms?: Set<AITool>,
   /**
    * Bypass `update.skip` when collecting templates. Enable this for breaking
@@ -906,7 +908,6 @@ async function collectTemplateFiles(
   // configures `language: zh` (or env / flag overrides), the `*.zh.md` source
   // is used; otherwise the English source. The landed path stays
   // `.trellis/workflow.md` so `.template-hashes.json` keys remain locale-agnostic.
-  const language = resolveLanguage(cwd);
   files.set(`${DIR_NAMES.WORKFLOW}/workflow.md`, getWorkflowTemplate(language));
   // workspace/index.md stays excluded — it's runtime-appended by add_session.py
   // (journal index) and has no script-parsed structure.
@@ -914,7 +915,7 @@ async function collectTemplateFiles(
 
   // Platform-specific templates (only for configured platforms)
   for (const platformId of platforms) {
-    const platformFiles = collectPlatformTemplates(platformId);
+    const platformFiles = collectPlatformTemplates(platformId, language);
     if (platformFiles) {
       for (const [filePath, content] of platformFiles) {
         files.set(filePath, content);
@@ -2119,10 +2120,15 @@ export async function update(options: UpdateOptions): Promise<void> {
           `⚠ Invalid --language value: ${JSON.stringify(options.language)}; falling back to ${DEFAULT_LANGUAGE}.`,
         ),
       );
+      // The explicit flag remains authoritative even when invalid: use the
+      // documented English fallback instead of consulting env/config.
+      process.env.TRELLIS_LANGUAGE = DEFAULT_LANGUAGE;
     } else {
       process.env.TRELLIS_LANGUAGE = validated;
     }
   }
+
+  const language = resolveLanguage(cwd);
 
   console.log(chalk.cyan("\nTrellis Update"));
   console.log(chalk.cyan("══════════════\n"));
@@ -2263,6 +2269,7 @@ export async function update(options: UpdateOptions): Promise<void> {
   // Collect templates (used for both migration classification and change analysis)
   const templates = await collectTemplateFiles(
     cwd,
+    language,
     codexUpgradeNeeded ? new Set<AITool>(["codex"]) : undefined,
     breakingBypass,
   );

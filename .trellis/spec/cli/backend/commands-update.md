@@ -279,7 +279,7 @@ What's unique to update:
 - npm-version advisory check (init has no remote check today).
 - Migration task generation.
 
-Init has no notion of "what was here before" — it always assumes a fresh slate and is gated by `--force` / `--skip-existing`. Update is the only command that reasons about prior state via hashes.
+A first init assumes a fresh slate and replaces the hash manifest with the paths it actually wrote. A full re-init is still gated by `--force` / `--skip-existing`, but hash seeding must call `initializeHashes(..., { merge: true })`: byte-identical Trellis-owned files are intentionally absent from the write recorder, so replacing the manifest would silently drop their ownership hashes and make later locale/update changes look user-modified. Re-init merges existing hashes and overlays hashes for files it did rewrite; update remains the command that performs hash-based conflict classification.
 
 ---
 

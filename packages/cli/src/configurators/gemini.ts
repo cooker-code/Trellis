@@ -1,5 +1,6 @@
 import path from "node:path";
 import { AI_TOOLS } from "../types/ai-tools.js";
+import { DEFAULT_LANGUAGE, type SupportedLanguage } from "../utils/i18n.js";
 import { ensureDir, writeFile } from "../utils/file-writer.js";
 import {
   resolvePlaceholders,
@@ -30,14 +31,17 @@ import {
  *   Read jsonl/prd themselves)
  * - settings.json — hook configuration (SessionStart + BeforeAgent)
  */
-export async function configureGemini(cwd: string): Promise<void> {
+export async function configureGemini(
+  cwd: string,
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): Promise<void> {
   const config = AI_TOOLS.gemini;
   const ctx = config.templateContext;
   const configRoot = path.join(cwd, config.configDir);
 
   const commandsDir = path.join(configRoot, "commands", "trellis");
   ensureDir(commandsDir);
-  for (const cmd of resolveCommands(ctx)) {
+  for (const cmd of resolveCommands(ctx, language)) {
     const toml = `description = "Trellis: ${cmd.name}"\n\nprompt = """\n${cmd.content}\n"""\n`;
     await writeFile(path.join(commandsDir, `${cmd.name}.toml`), toml);
   }
@@ -47,12 +51,12 @@ export async function configureGemini(cwd: string): Promise<void> {
   // SKILL.md files are byte-identical to Codex's writes for the same skills.
   await writeSkills(
     path.join(cwd, ".agents", "skills"),
-    resolveSkillsNeutral(ctx),
-    resolveBundledSkills(ctx),
+    resolveSkillsNeutral(ctx, language),
+    resolveBundledSkills(ctx, language),
   );
   await writeAgents(
     path.join(configRoot, "agents"),
-    applyPullBasedPreludeMarkdown(getAllAgents()),
+    applyPullBasedPreludeMarkdown(getAllAgents(language), language),
   );
   await writeSharedHooks(path.join(configRoot, "hooks"), "gemini");
 

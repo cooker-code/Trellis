@@ -145,6 +145,21 @@ markers (`[Codex]` plus `[Kilo, Antigravity, Windsurf]`) must be replaced by
 the current packaged template so `--platform codex` can resolve to
 `codex-inline` or `codex-sub-agent` and still load Phase 2.1 detail.
 
+### Locale-neutral Phase Index boundary
+
+The compact Phase Index consumed by `workflow_phase.py`, Python SessionStart
+hooks, and OpenCode SessionStart must not depend on translated heading text.
+Parsers keep the exact English `## Phase Index` → `## Phase 1: Plan` range as
+the backward-compatible fast path. When that start heading is absent, they:
+
+1. locate the exact preserved `[workflow-state:no_task]` opening marker;
+2. scan backward to its enclosing level-2 Markdown heading;
+3. stop at the next level-2 heading.
+
+If neither the English anchor nor the no-task marker exists, parsers retain
+their existing empty/fallback behavior. Do not add Chinese-specific heading
+literals; future locales rely on the same machine marker.
+
 ---
 
 ## Status writer table

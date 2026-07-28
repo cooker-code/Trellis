@@ -59,7 +59,10 @@ import {
 import { VERSION } from "../../src/constants/version.js";
 import { DIR_NAMES, FILE_NAMES, PATHS } from "../../src/constants/paths.js";
 import { computeHash } from "../../src/utils/template-hash.js";
-import { workflowMdTemplate } from "../../src/templates/trellis/index.js";
+import {
+  getWorkflowTemplate,
+  workflowMdTemplate,
+} from "../../src/templates/trellis/index.js";
 import {
   COPILOT_INSTRUCTIONS_BLOCK_END,
   COPILOT_INSTRUCTIONS_BLOCK_START,
@@ -74,6 +77,7 @@ import {
   resolveBundledSkills,
   collectSkillTemplates,
 } from "../../src/configurators/shared.js";
+import { collectPlatformTemplates } from "../../src/configurators/index.js";
 import { AI_TOOLS } from "../../src/types/ai-tools.js";
 
 // A managed template file that update always handles (Python script)
@@ -396,16 +400,21 @@ describe("update() integration", () => {
     expect(classified.conflict).toHaveLength(0);
     expect(classified.auto).toHaveLength(1);
 
-    await executeMigrations(classified, tmpDir, { force: true, skipAll: false }, currentTemplates);
+    await executeMigrations(
+      classified,
+      tmpDir,
+      { force: true, skipAll: false },
+      currentTemplates,
+    );
 
     // No duplicate/leftover `.pi/skills/` directory should survive.
     expect(fs.existsSync(projectFile(".pi/skills"))).toBe(false);
 
     // `.agents/skills/` must end up with the correct, current, neutral
     // content — not the stale Pi-flavored bytes from the deleted legacy dir.
-    expect(
-      readProjectFile(".agents/skills/trellis-update-spec/SKILL.md"),
-    ).toBe(neutralContent);
+    expect(readProjectFile(".agents/skills/trellis-update-spec/SKILL.md")).toBe(
+      neutralContent,
+    );
   });
 
   it("#2 dry run makes no file changes even when changes exist", async () => {
@@ -1514,6 +1523,147 @@ describe("update() integration", () => {
 
     expect(readHashesV2(hashFile)[PATHS.WORKFLOW_GUIDE_FILE]).toBe(
       computeHash(updated),
+    );
+  });
+
+  it("#workflow-i18n switches pristine workflow, common templates, and agents between locales idempotently", async () => {
+    await setupProject();
+    const localizedFiles = [
+      PATHS.WORKFLOW_GUIDE_FILE,
+      ".claude/commands/trellis/continue.md",
+      ".claude/skills/trellis-before-dev/SKILL.md",
+      ".claude/agents/trellis-implement.md",
+    ];
+    const englishClaude = collectPlatformTemplates("claude-code", "en");
+    const chineseClaude = collectPlatformTemplates("claude-code", "zh");
+    if (!englishClaude || !chineseClaude) {
+      throw new Error("Missing Claude platform templates");
+    }
+    const expectedFile = (file: string, language: "en" | "zh"): string => {
+      if (file === PATHS.WORKFLOW_GUIDE_FILE) {
+        return replacePythonCommandLiterals(getWorkflowTemplate(language));
+      }
+      const content = (language === "zh" ? chineseClaude : englishClaude).get(
+        file,
+      );
+      if (content === undefined) throw new Error(`Missing template: ${file}`);
+      return content;
+    };
+
+    for (const file of localizedFiles) {
+      expect(readProjectFile(file), file).toBe(expectedFile(file, "en"));
+    }
+
+    const configPath = projectFile(`${DIR_NAMES.WORKFLOW}/config.yaml`);
+    const configuredZh = fs
+      .readFileSync(configPath, "utf-8")
+      .replace(/^# language: en$/m, "language: zh");
+    fs.writeFileSync(configPath, configuredZh, "utf-8");
+
+    await update({ skipAll: true });
+
+    const workflowPath = projectFile(PATHS.WORKFLOW_GUIDE_FILE);
+    const expectedZh = replacePythonCommandLiterals(getWorkflowTemplate("zh"));
+    const landedZh = fs.readFileSync(workflowPath, "utf-8");
+    const hashesAfterSwitch = readHashesV2(hashFilePath());
+
+    expect(landedZh).toBe(expectedZh);
+    expect(fs.existsSync(projectFile(".trellis/workflow.zh.md"))).toBe(false);
+    expect(hashesAfterSwitch[PATHS.WORKFLOW_GUIDE_FILE]).toBe(
+      computeHash(landedZh),
+    );
+    expect(hashesAfterSwitch[".trellis/workflow.zh.md"]).toBeUndefined();
+    expect(fs.readFileSync(configPath, "utf-8")).toBe(configuredZh);
+    for (const file of localizedFiles) {
+      const landed = readProjectFile(file);
+      expect(landed, file).toBe(expectedFile(file, "zh"));
+      expect(landed, file).toMatch(/[\u3400-\u9fff]/);
+      expect(hashesAfterSwitch[file], file).toBe(computeHash(landed));
+      expect(file).not.toContain(".zh.");
+    }
+
+    await update({ skipAll: true });
+    for (const file of localizedFiles) {
+      expect(readProjectFile(file), file).toBe(expectedFile(file, "zh"));
+      expect(readHashesV2(hashFilePath())[file], file).toBe(
+        hashesAfterSwitch[file],
+      );
+    }
+    expect(fs.readFileSync(configPath, "utf-8")).toBe(configuredZh);
+
+    const configuredEn = configuredZh.replace(
+      /^language: zh$/m,
+      "language: en",
+    );
+    fs.writeFileSync(configPath, configuredEn, "utf-8");
+    await update({ skipAll: true });
+    const hashesAfterReturn = readHashesV2(hashFilePath());
+    for (const file of localizedFiles) {
+      const landed = readProjectFile(file);
+      expect(landed, file).toBe(expectedFile(file, "en"));
+      expect(hashesAfterReturn[file], file).toBe(computeHash(landed));
+    }
+
+    await update({ skipAll: true });
+    for (const file of localizedFiles) {
+      expect(readProjectFile(file), file).toBe(expectedFile(file, "en"));
+      expect(readHashesV2(hashFilePath())[file], file).toBe(
+        hashesAfterReturn[file],
+      );
+    }
+    expect(fs.readFileSync(configPath, "utf-8")).toBe(configuredEn);
+  });
+
+  it("#workflow-i18n invalid explicit language warns and lands English instead of config Chinese", async () => {
+    await setupProject();
+    const configPath = projectFile(`${DIR_NAMES.WORKFLOW}/config.yaml`);
+    const configuredZh = fs
+      .readFileSync(configPath, "utf-8")
+      .replace(/^# language: en$/m, "language: zh");
+    fs.writeFileSync(configPath, configuredZh, "utf-8");
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const previousLanguage = process.env.TRELLIS_LANGUAGE;
+
+    try {
+      await update({ skipAll: true, language: "ja" });
+    } finally {
+      if (previousLanguage === undefined) {
+        delete process.env.TRELLIS_LANGUAGE;
+      } else {
+        process.env.TRELLIS_LANGUAGE = previousLanguage;
+      }
+    }
+
+    expect(readProjectFile(PATHS.WORKFLOW_GUIDE_FILE)).toBe(
+      replacePythonCommandLiterals(getWorkflowTemplate("en")),
+    );
+    expect(fs.readFileSync(configPath, "utf-8")).toBe(configuredZh);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      '⚠ Invalid --language value: "ja"; falling back to en.',
+    );
+  });
+
+  it("#workflow-i18n preserves user-modified localized files during a locale switch", async () => {
+    await setupProject();
+    const target = ".claude/commands/trellis/continue.md";
+    const originalHash = readHashesV2(hashFilePath())[target];
+    const userContent = "# My custom continue workflow\n";
+    writeProjectFile(target, userContent);
+
+    const configPath = projectFile(`${DIR_NAMES.WORKFLOW}/config.yaml`);
+    const configuredZh = fs
+      .readFileSync(configPath, "utf-8")
+      .replace(/^# language: en$/m, "language: zh");
+    fs.writeFileSync(configPath, configuredZh, "utf-8");
+
+    await update({ skipAll: true });
+
+    expect(readProjectFile(target)).toBe(userContent);
+    expect(readHashesV2(hashFilePath())[target]).toBe(originalHash);
+    expect(readProjectFile(".claude/agents/trellis-implement.md")).toMatch(
+      /[\u3400-\u9fff]/,
     );
   });
 });

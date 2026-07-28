@@ -16,6 +16,7 @@ import {
 import injectSubagentContextPlugin from "../../src/templates/opencode/plugins/inject-subagent-context.js";
 import sessionStartPlugin from "../../src/templates/opencode/plugins/session-start.js";
 import injectWorkflowStatePlugin from "../../src/templates/opencode/plugins/inject-workflow-state.js";
+import { getWorkflowTemplate } from "../../src/templates/trellis/index.js";
 
 interface TestContextCollector {
   processed: Set<string>;
@@ -188,6 +189,30 @@ describe("opencode session-start history detection", () => {
       { type: "text", text: "Second request" },
     ]);
     expect(historyReads).toBe(2);
+  });
+
+  it("builds a compact Chinese workflow overview without detailed Steps", () => {
+    const context = buildSessionContext({
+      directory: "/tmp/trellis-opencode-test",
+      getActiveTask: () => ({ taskPath: null, source: "none", stale: false }),
+      getContextKey: () => null,
+      getCurrentTask: () => null,
+      readFile: () => "",
+      readProjectFile: (relativePath: string) =>
+        relativePath === ".trellis/workflow.md"
+          ? getWorkflowTemplate("zh")
+          : "",
+      resolveTaskDir: () => null,
+      runScript: () => "",
+    });
+
+    expect(context).toContain("## 阶段索引");
+    expect(context).toContain("### 请求分类");
+    expect(context).not.toMatch(/^## Phase 1：规划/m);
+    expect(context).not.toContain("#### 1.1 探索需求");
+    expect(context).not.toMatch(
+      /\[workflow-state:([A-Za-z0-9_-]+)\][\s\S]*?\[\/workflow-state:\1\]/,
+    );
   });
 
   it("detects persisted Trellis context from metadata", () => {
@@ -496,7 +521,10 @@ function setupTrellisProject(): string {
   const taskDir = join(dir, ".trellis", "tasks", "demo-task");
   mkdirSync(taskDir, { recursive: true });
   mkdirSync(join(dir, ".trellis", ".runtime", "sessions"), { recursive: true });
-  writeFileSync(join(taskDir, "prd.md"), "# Demo PRD\n\nGoal: verify injection.");
+  writeFileSync(
+    join(taskDir, "prd.md"),
+    "# Demo PRD\n\nGoal: verify injection.",
+  );
   writeFileSync(join(taskDir, "implement.jsonl"), "");
   writeFileSync(join(taskDir, "check.jsonl"), "");
   writeFileSync(
@@ -625,9 +653,9 @@ describe("opencode inject-subagent-context (issue #264)", () => {
     expect(output.args.prompt).toContain("do the implementation");
     // Marker must be at the top so generated agent definitions can detect
     // successful injection via a prefix check.
-    expect(output.args.prompt.startsWith("<!-- trellis-hook-injected -->")).toBe(
-      true,
-    );
+    expect(
+      output.args.prompt.startsWith("<!-- trellis-hook-injected -->"),
+    ).toBe(true);
   });
 
   it("inlines JSONL-referenced spec content into the implement prompt", async () => {
@@ -816,6 +844,33 @@ describe("opencode chat.message subagent skip (issue #264)", () => {
     expect(parts[0].text).toContain("user prompt");
   });
 
+  it("inject-workflow-state.js emits Chinese workflow-state bodies verbatim", async () => {
+    writeFileSync(
+      join(dir, ".trellis", "tasks", "demo-task", "task.json"),
+      JSON.stringify({ status: "in_progress" }),
+    );
+    writeFileSync(
+      join(dir, ".trellis", "workflow.md"),
+      getWorkflowTemplate("zh"),
+    );
+    writeSessionFile(dir, "opencode_main-session", ".trellis/tasks/demo-task");
+
+    const hooks = (await injectWorkflowStatePlugin({
+      directory: dir,
+    })) as ChatMessageHooks;
+    const parts: ChatMessagePart[] = [{ type: "text", text: "user prompt" }];
+
+    await hooks["chat.message"](
+      { sessionID: "main-session", agent: "build" },
+      { parts },
+    );
+
+    expect(parts[0].text).toContain(
+      "主 session 默认行为：派发 implement/check sub-agent。",
+    );
+    expect(parts[0].text).toContain("commit (Phase 3.4)");
+  });
+
   it("inject-workflow-state.js skips injection when the prompt contains the default skip keyword", async () => {
     const hooks = (await injectWorkflowStatePlugin({
       directory: dir,
@@ -877,7 +932,7 @@ describe("opencode chat.message subagent skip (issue #264)", () => {
     expect(notSkipped[0].text).toContain("<workflow-state>");
   });
 
-  it("inject-workflow-state.js disables the escape hatch with skip_keyword: \"\"", async () => {
+  it('inject-workflow-state.js disables the escape hatch with skip_keyword: ""', async () => {
     writeFileSync(
       join(dir, ".trellis", "config.yaml"),
       ["prompt_injection:", '  skip_keyword: ""'].join("\n"),
@@ -920,7 +975,7 @@ describe("opencode context injection limits (issue #441)", () => {
   function writeJsonlEntries(entries: Record<string, string>[]): void {
     writeFileSync(
       join(dir, ".trellis", "tasks", "demo-task", "implement.jsonl"),
-      entries.map(e => JSON.stringify(e)).join("\n") + "\n",
+      entries.map((e) => JSON.stringify(e)).join("\n") + "\n",
       "utf-8",
     );
   }
@@ -1080,8 +1135,7 @@ describe("opencode context injection limits (issue #441)", () => {
     });
 
     it("does not misclassify legitimate multi-byte UTF-8 content as binary", async () => {
-      const multiByteContent =
-        "emoji: 🎉🚀 cjk: 中文测试 bmp: café naïve\n";
+      const multiByteContent = "emoji: 🎉🚀 cjk: 中文测试 bmp: café naïve\n";
       writeFileSync(join(dir, "multibyte.md"), multiByteContent, "utf-8");
       writeJsonlEntries([{ file: "multibyte.md", reason: "unicode spec" }]);
 
@@ -1237,7 +1291,11 @@ describe("opencode context injection limits (issue #441)", () => {
       mkdirSync(join(dir, "refdir"), { recursive: true });
       writeFileSync(join(dir, "refdir", "a.md"), "A".repeat(1000), "utf-8");
       writeFileSync(join(dir, "refdir", "b.md"), "B".repeat(1000), "utf-8");
-      writeFileSync(join(dir, "refdir", "c.txt"), "IGNORED_TXT_CONTENT", "utf-8");
+      writeFileSync(
+        join(dir, "refdir", "c.txt"),
+        "IGNORED_TXT_CONTENT",
+        "utf-8",
+      );
       writeJsonlEntries([
         { file: "refdir/", type: "directory", reason: "reference dir" },
       ]);

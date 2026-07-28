@@ -1,0 +1,12 @@
+{"file":".trellis/spec/cli/backend/script-conventions.md","reason":"Verify Python i18n, stdlib-only, locale, and output contracts."}
+{"file":".trellis/spec/cli/backend/quality-guidelines.md","reason":"Verify code quality and cross-path audit completeness."}
+{"file":".trellis/spec/cli/unit-test/index.md","reason":"Verify required checks and test layers."}
+{"file":".trellis/spec/cli/unit-test/conventions.md","reason":"Verify tests are dynamic, non-tautological, and behavior-focused."}
+{"file":".trellis/spec/cli/unit-test/integration-patterns.md","reason":"Verify init/update integration coverage and real filesystem behavior."}
+{"file":".trellis/spec/docs-site/docs/sync-on-change.md","reason":"Verify Beta-only and mirrored EN/ZH docs changes."}
+{"file":".trellis/spec/docs-site/docs/config-guidelines.md","reason":"Verify docs.json language routes and navigation parity."}
+{"file":".trellis/spec/docs-site/docs/mdx-guidelines.md","reason":"Verify MDX syntax and frontmatter."}
+{"file":".trellis/spec/docs-site/docs/style-guide.md","reason":"Verify technical documentation accuracy and scope."}
+{"file":".trellis/tasks/07-27-i18n-bundled-python-pr3/research/bundled-and-spec-template-loading.md","reason":"Check logical path parity, fallback, cache, and source coverage."}
+{"file":".trellis/tasks/07-27-i18n-bundled-python-pr3/research/python-i18n-surface.md","reason":"Check complete core Python migration and protocol exclusions."}
+{"file":".trellis/tasks/07-27-i18n-bundled-python-pr3/research/docs-routes-and-test-plan.md","reason":"Check docs/test matrix and validation completeness."}

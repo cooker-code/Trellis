@@ -17,6 +17,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from .i18n import t
 from .paths import get_repo_root, get_tasks_dir
 
 
@@ -41,17 +42,17 @@ def is_safe_task_path(task_path: str, repo_root: Path | None = None) -> bool:
 
     # Check empty or null
     if not normalized or normalized == "null":
-        print("Error: empty or null task path", file=sys.stderr)
+        print(t("task_utils.empty_path"), file=sys.stderr)
         return False
 
     # Reject absolute paths
     if Path(task_path).is_absolute():
-        print(f"Error: absolute path not allowed: {task_path}", file=sys.stderr)
+        print(t("task_utils.absolute_path", path=task_path), file=sys.stderr)
         return False
 
     # Reject ".", "..", paths starting with "./" or "../", or containing ".."
     if normalized in (".", "..") or normalized.startswith("./") or normalized.startswith("../") or ".." in normalized:
-        print(f"Error: path traversal not allowed: {task_path}", file=sys.stderr)
+        print(t("task_utils.path_traversal", path=task_path), file=sys.stderr)
         return False
 
     # Final check: ensure resolved path is not the repo root
@@ -61,7 +62,7 @@ def is_safe_task_path(task_path: str, repo_root: Path | None = None) -> bool:
             resolved = abs_path.resolve()
             root_resolved = repo_root.resolve()
             if resolved == root_resolved:
-                print(f"Error: path resolves to repo root: {task_path}", file=sys.stderr)
+                print(t("task_utils.repo_root_path", path=task_path), file=sys.stderr)
                 return False
         except (OSError, IOError):
             pass
@@ -138,7 +139,7 @@ def archive_task_dir(task_dir_abs: Path, repo_root: Path | None = None) -> Path 
         Path to archived directory, or None on error.
     """
     if not task_dir_abs.is_dir():
-        print(f"Error: task directory not found: {task_dir_abs}", file=sys.stderr)
+        print(t("task_utils.task_dir_not_found", path=task_dir_abs), file=sys.stderr)
         return None
 
     # Get tasks directory (parent of the task)
@@ -151,7 +152,7 @@ def archive_task_dir(task_dir_abs: Path, repo_root: Path | None = None) -> Path 
     try:
         month_dir.mkdir(parents=True, exist_ok=True)
     except (OSError, IOError) as e:
-        print(f"Error: Failed to create archive directory: {e}", file=sys.stderr)
+        print(t("task_utils.archive_dir_failed", error=e), file=sys.stderr)
         return None
 
     # Move task to archive
@@ -161,7 +162,7 @@ def archive_task_dir(task_dir_abs: Path, repo_root: Path | None = None) -> Path 
     try:
         shutil.move(str(task_dir_abs), str(dest))
     except (OSError, IOError, shutil.Error) as e:
-        print(f"Error: Failed to move task to archive: {e}", file=sys.stderr)
+        print(t("task_utils.archive_move_failed", error=e), file=sys.stderr)
         return None
 
     return dest
@@ -181,7 +182,7 @@ def archive_task_complete(
         Dict with archive result info.
     """
     if not task_dir_abs.is_dir():
-        print(f"Error: task directory not found: {task_dir_abs}", file=sys.stderr)
+        print(t("task_utils.task_dir_not_found", path=task_dir_abs), file=sys.stderr)
         return {}
 
     archive_dest = archive_task_dir(task_dir_abs, repo_root)
@@ -273,14 +274,25 @@ def run_task_hooks(event: str, task_json_path: Path, repo_root: Path) -> None:
             )
             if result.returncode != 0:
                 print(
-                    colored(f"[WARN] Hook failed ({event}): {cmd}", Colors.YELLOW),
+                    colored(
+                        t("task_utils.hook_failed", event=event, command=cmd),
+                        Colors.YELLOW,
+                    ),
                     file=sys.stderr,
                 )
                 if result.stderr.strip():
                     print(f"  {result.stderr.strip()}", file=sys.stderr)
         except Exception as e:
             print(
-                colored(f"[WARN] Hook error ({event}): {cmd} — {e}", Colors.YELLOW),
+                colored(
+                    t(
+                        "task_utils.hook_error",
+                        event=event,
+                        command=cmd,
+                        error=e,
+                    ),
+                    Colors.YELLOW,
+                ),
                 file=sys.stderr,
             )
 

@@ -1,0 +1,15 @@
+{"file":".trellis/spec/cli/backend/index.md","reason":"CLI/backend pre-development checklist and package rules."}
+{"file":".trellis/spec/cli/backend/script-conventions.md","reason":"Python 3.9, stdlib-only, config, and i18n message contracts."}
+{"file":".trellis/spec/cli/backend/quality-guidelines.md","reason":"TypeScript quality, source/audit discipline, and compatibility rules."}
+{"file":".trellis/spec/cli/unit-test/index.md","reason":"Test commands and required unit/integration coverage."}
+{"file":".trellis/spec/cli/unit-test/conventions.md","reason":"Dynamic inventories, meaningful assertions, and regression-test conventions."}
+{"file":".trellis/spec/cli/unit-test/integration-patterns.md","reason":"Init/update filesystem integration-test patterns."}
+{"file":".trellis/spec/docs-site/docs/index.md","reason":"Docs package entry checklist."}
+{"file":".trellis/spec/docs-site/docs/sync-on-change.md","reason":"Beta/Release routing and bilingual docs synchronization contract."}
+{"file":".trellis/spec/docs-site/docs/config-guidelines.md","reason":"Mintlify bilingual route and docs.json requirements."}
+{"file":".trellis/spec/docs-site/docs/mdx-guidelines.md","reason":"MDX structure and validation constraints."}
+{"file":".trellis/spec/docs-site/docs/style-guide.md","reason":"Technical docs voice and source-of-truth discipline."}
+{"file":".trellis/spec/guides/index.md","reason":"Shared cross-layer and code-reuse thinking triggers."}
+{"file":".trellis/tasks/07-27-i18n-bundled-python-pr3/research/bundled-and-spec-template-loading.md","reason":"Recursive loader, source inventory, locale overlay, and spec-template findings."}
+{"file":".trellis/tasks/07-27-i18n-bundled-python-pr3/research/python-i18n-surface.md","reason":"Python message scope, protocol allowlist, and subprocess test requirements."}
+{"file":".trellis/tasks/07-27-i18n-bundled-python-pr3/research/docs-routes-and-test-plan.md","reason":"Beta docs routes, stale claims, test matrix, and validation commands."}

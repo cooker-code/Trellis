@@ -1,5 +1,6 @@
 import path from "node:path";
 import { AI_TOOLS } from "../types/ai-tools.js";
+import { DEFAULT_LANGUAGE, type SupportedLanguage } from "../utils/i18n.js";
 import { ensureDir, writeFile } from "../utils/file-writer.js";
 import {
   resolvePlaceholders,
@@ -23,29 +24,32 @@ import { getAllAgents, getSettingsTemplate } from "../templates/qoder/index.js";
  * `inject-subagent-context.py` is excluded because Qoder's hook can't inject
  * sub-agent prompts — sub-agents pull task context themselves.
  */
-export async function configureQoder(cwd: string): Promise<void> {
+export async function configureQoder(
+  cwd: string,
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): Promise<void> {
   const config = AI_TOOLS.qoder;
   const ctx = config.templateContext;
   const configRoot = path.join(cwd, config.configDir);
 
   const commandsDir = path.join(configRoot, "commands");
   ensureDir(commandsDir);
-  for (const cmd of resolveCommands(ctx)) {
+  for (const cmd of resolveCommands(ctx, language)) {
     const name = `trellis-${cmd.name}`;
     await writeFile(
       path.join(commandsDir, `${name}.md`),
-      wrapWithCommandFrontmatter(name, cmd.content),
+      wrapWithCommandFrontmatter(name, cmd.content, language),
     );
   }
 
   await writeSkills(
     path.join(configRoot, "skills"),
-    resolveSkills(ctx),
-    resolveBundledSkills(ctx),
+    resolveSkills(ctx, language),
+    resolveBundledSkills(ctx, language),
   );
   await writeAgents(
     path.join(configRoot, "agents"),
-    applyPullBasedPreludeMarkdown(getAllAgents()),
+    applyPullBasedPreludeMarkdown(getAllAgents(language), language),
   );
   await writeSharedHooks(path.join(configRoot, "hooks"), "qoder");
 

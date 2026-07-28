@@ -1,0 +1,9 @@
+{"file":".trellis/spec/cli/backend/workflow-state-contract.md","reason":"Verify workflow-state tags, parser compatibility, update semantics, and breadcrumb gates remain intact."}
+{"file":".trellis/spec/cli/backend/commands-update.md","reason":"Verify whole-file workflow update, user-edit protection, locale hash refresh, and idempotency."}
+{"file":".trellis/spec/cli/backend/script-conventions.md","reason":"Verify distributed Python parser changes remain cross-platform and Python 3.9 compatible."}
+{"file":".trellis/spec/cli/backend/quality-guidelines.md","reason":"General backend quality and routing-entry-path review."}
+{"file":".trellis/spec/cli/unit-test/conventions.md","reason":"Check tests use exact, isolated, meaningful assertions without duplicated/tautological coverage."}
+{"file":".trellis/spec/cli/unit-test/integration-patterns.md","reason":"Check init/update tests exercise real filesystem and hash behavior."}
+{"file":".trellis/tasks/07-27-i18n-workflow-pr1b/research/workflow-runtime-parser-audit.md","reason":"Cross-check that all identified parser families were covered."}
+{"file":".trellis/tasks/07-27-i18n-workflow-pr1b/research/workflow-structure-and-drift-plan.md","reason":"Validate structural parity categories and protected-token preservation."}
+{"file":".trellis/tasks/07-27-i18n-workflow-pr1b/research/workflow-init-update-test-plan.md","reason":"Validate the full init/update/runtime regression matrix."}

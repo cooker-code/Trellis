@@ -18,7 +18,11 @@
   "commit": null,
   "pr_url": null,
   "subtasks": [],
-  "children": [],
+  "children": [
+    "07-27-i18n-workflow-pr1b",
+    "07-27-i18n-common-skills-pr2",
+    "07-27-i18n-bundled-python-pr3"
+  ],
   "parent": null,
   "relatedFiles": [],
   "notes": "",

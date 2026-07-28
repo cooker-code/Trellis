@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import re
 
+from .i18n import t
 from .paths import DIR_WORKFLOW, get_repo_root
 
 
@@ -34,14 +35,17 @@ _MARKER_RE = re.compile(r"^\[(/?)([A-Za-z][^\[\]]*)\]\s*$")
 # Step heading: "#### 1.0 Title" or "#### 1.0 ..."
 _STEP_HEADING_RE = re.compile(r"^####\s+(\d+\.\d+)\b.*$")
 
-# Phase Index starts here; Phase 1/2/3 step bodies follow; ends at Breadcrumbs.
+# English anchors remain the backward-compatible fast path. Localized bundled
+# workflows are located through the preserved no-task workflow-state marker.
 _PHASE_INDEX_HEADING = "## Phase Index"
+_PHASE_1_HEADING = "## Phase 1: Plan"
+_NO_TASK_MARKER = "[workflow-state:no_task]"
 
 
 def _read_workflow() -> str:
     path = _workflow_md_path()
     if not path.exists():
-        raise FileNotFoundError(f"workflow.md not found: {path}")
+        raise FileNotFoundError(t("context.workflow_not_found", path=path))
     return path.read_text(encoding="utf-8")
 
 
@@ -59,6 +63,48 @@ def _parse_marker(line: str) -> tuple[bool, list[str]] | None:
     return is_closing, names
 
 
+def _find_phase_index_bounds(lines: list[str]) -> tuple[int, int] | None:
+    """Locate the compact Phase Index without depending on translated titles."""
+    start: int | None = None
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if start is None and stripped == _PHASE_INDEX_HEADING:
+            start = i
+            continue
+        if start is not None and stripped == _PHASE_1_HEADING:
+            return start, i
+    if start is not None:
+        return start, len(lines)
+
+    no_task_index = next(
+        (i for i, line in enumerate(lines) if line.strip() == _NO_TASK_MARKER),
+        None,
+    )
+    if no_task_index is None:
+        return None
+
+    localized_start = next(
+        (
+            i
+            for i in range(no_task_index - 1, -1, -1)
+            if lines[i].strip().startswith("## ")
+        ),
+        None,
+    )
+    if localized_start is None:
+        return None
+
+    localized_end = next(
+        (
+            i
+            for i in range(localized_start + 1, len(lines))
+            if lines[i].strip().startswith("## ")
+        ),
+        len(lines),
+    )
+    return localized_start, localized_end
+
+
 def get_phase_index() -> str:
     """Return the compact Phase Index summary from workflow.md.
 
@@ -69,22 +115,10 @@ def get_phase_index() -> str:
     """
     text = _read_workflow()
     lines = text.splitlines()
-
-    start: int | None = None
-    end: int | None = None
-    for i, line in enumerate(lines):
-        stripped = line.strip()
-        if start is None and stripped == _PHASE_INDEX_HEADING:
-            start = i
-            continue
-        if start is not None and stripped == "## Phase 1: Plan":
-            end = i
-            break
-
-    if start is None:
+    bounds = _find_phase_index_bounds(lines)
+    if bounds is None:
         return ""
-    if end is None:
-        end = len(lines)
+    start, end = bounds
 
     section = "\n".join(lines[start:end]).rstrip()
     # Strip [workflow-state:STATUS]...[/workflow-state:STATUS] blocks since

@@ -1,0 +1,12 @@
+{"file":".trellis/spec/cli/backend/directory-structure.md","reason":"Verify source suffixes, English fallback, unsuffixed destinations, and English compatibility."}
+{"file":".trellis/spec/cli/backend/configurator-shared.md","reason":"Verify shared renderer/prelude/description semantics and configure/collect byte parity."}
+{"file":".trellis/spec/cli/backend/platform-integration.md","reason":"Verify every platform agent format and transformation remains valid."}
+{"file":".trellis/spec/cli/backend/commands-update.md","reason":"Verify hash keys/values, user conflict protection, locale switching, and no-op reruns."}
+{"file":".trellis/spec/cli/backend/quality-guidelines.md","reason":"Verify strict typing, entry-path completeness, and no duplicated platform logic."}
+{"file":".trellis/spec/cli/unit-test/conventions.md","reason":"Verify dynamic, exact, isolated, behavior-focused tests."}
+{"file":".trellis/spec/cli/unit-test/integration-patterns.md","reason":"Verify real init/update/filesystem/hash coverage."}
+{"file":".trellis/spec/guides/cross-platform-thinking-guide.md","reason":"Check every supported platform and logical-vs-filesystem path boundary."}
+{"file":".trellis/tasks/07-27-i18n-common-skills-pr2/research/common-aggregation-and-locale-propagation.md","reason":"Check selector, locale threading, cache, descriptions, prelude, and fallback implementation."}
+{"file":".trellis/tasks/07-27-i18n-common-skills-pr2/research/platform-agent-format-and-configurator-matrix.md","reason":"Check all 33 generated agent definitions and format-specific invariants."}
+{"file":".trellis/tasks/07-27-i18n-common-skills-pr2/research/init-update-byte-parity-and-test-plan.md","reason":"Check complete locale/path/byte/hash/build validation matrix."}
+{"file":".trellis/tasks/07-27-i18n-common-skills-pr2/research/pr-boundaries-and-concurrency.md","reason":"Check PR2 stayed within its boundary and left PR3's dependency contract intact."}

@@ -1,5 +1,6 @@
 import path from "node:path";
 import { AI_TOOLS } from "../types/ai-tools.js";
+import { DEFAULT_LANGUAGE, type SupportedLanguage } from "../utils/i18n.js";
 import { ensureDir, writeFile } from "../utils/file-writer.js";
 import {
   resolvePlaceholders,
@@ -29,7 +30,10 @@ import { getAllAgents, getSettingsTemplate } from "../templates/trae/index.js";
  *   ├── hooks/         # Shared Python hook scripts
  *   └── hooks.json     # Hook event registration
  */
-export async function configureTrae(cwd: string): Promise<void> {
+export async function configureTrae(
+  cwd: string,
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): Promise<void> {
   const config = AI_TOOLS.trae;
   const ctx = config.templateContext;
   const configRoot = path.join(cwd, config.configDir);
@@ -37,25 +41,25 @@ export async function configureTrae(cwd: string): Promise<void> {
   // 1. Commands — slash commands with frontmatter
   const commandsDir = path.join(configRoot, "commands");
   ensureDir(commandsDir);
-  for (const cmd of resolveCommands(ctx)) {
+  for (const cmd of resolveCommands(ctx, language)) {
     const name = `trellis-${cmd.name}`;
     await writeFile(
       path.join(commandsDir, `${name}.md`),
-      wrapWithCommandFrontmatter(name, cmd.content),
+      wrapWithCommandFrontmatter(name, cmd.content, language),
     );
   }
 
   // 2. Skills
   await writeSkills(
     path.join(configRoot, "skills"),
-    resolveSkills(ctx),
-    resolveBundledSkills(ctx),
+    resolveSkills(ctx, language),
+    resolveBundledSkills(ctx, language),
   );
 
   // 3. Agents — with pull-based prelude (class-2 pattern)
   await writeAgents(
     path.join(configRoot, "agents"),
-    applyPullBasedPreludeMarkdown(getAllAgents()),
+    applyPullBasedPreludeMarkdown(getAllAgents(), language),
   );
 
   // 4. Shared hooks — Python scripts

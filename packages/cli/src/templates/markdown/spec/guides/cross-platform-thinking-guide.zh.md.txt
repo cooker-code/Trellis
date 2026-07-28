@@ -1,0 +1,622 @@
+# 跨平台思维指南
+
+> **目的**：在特定于平台的假设成为错误之前捕获它们。
+
+---
+
+## 为什么这很重要
+
+**大多数跨平台错误来自隐含的假设**：
+
+- 假设 shebang 有效 → 在 Windows 上崩溃
+- 假设 `/` 路径分隔符 → 在 Windows 上中断
+- 假设 `\n` 行结尾 → 行为不一致
+- 假设 command 可用性 → `grep` 与 `findstr`
+
+---
+
+## 平台差异清单
+
+### 1. 脚本执行
+
+| 假设 | macOS/Linux | Windows |
+|------------|-------------|---------|
+| shebang (`#!/usr/bin/env python3`) | ✅ 有效 | ❌ 被忽略 |
+| 直接执行 (`./script.py`) | ✅ 有效 | ❌ 失败 |
+| `python3` command | ✅ 通常可用 | ⚠️ 可能需要 `python` |
+| `python` command | ⚠️ 可能是 Python 2 | ✅ 通常 Python 3 |
+
+**规则 1**：对于面向用户的文档、帮助文本和错误消息，可以：
+
+- 明确说明平台规则（Windows 上为 `python`，其他地方为 `python3`），或者
+- 通过代码使用的相同平台感知帮助器/占位符呈现 command。
+
+```python
+# BAD - Assumes shebang works
+print("Usage: ./script.py <args>")
+print("Run: script.py <args>")
+
+# GOOD - Platform-aware wording
+print("Usage: python on Windows, python3 elsewhere")
+print("Run: {{PYTHON_CMD}} ./.trellis/scripts/task.py <args>")
+```
+
+**规则2**：在初始化时生成配置文件时，使用占位符+平台检测：
+
+```typescript
+// In template file (settings.json):
+{ "command": "{{PYTHON_CMD}} .claude/hooks/script.py" }
+
+// In configurator:
+function getPythonCommand(): string {
+  return process.platform === "win32" ? "python" : "python3";
+}
+
+function replacePlaceholders(content: string): string {
+  return content.replace(/\{\{PYTHON_CMD\}\}/g, getPythonCommand());
+}
+```
+
+**规则 3**：当从 JavaScript 调用 Python 处的 runtime 时，动态检测平台：
+
+```javascript
+import { platform } from "os"
+
+const PYTHON_CMD = platform() === "win32" ? "python" : "python3"
+execSync(`${PYTHON_CMD} "${scriptPath}"`, { ... })
+```
+
+**规则 4**：如果您需要验证 Python 是否实际安装（不仅仅是选择
+command），请探测后续实际渲染或执行时将使用的同一个平台别名：
+
+```typescript
+function getPythonCommand(platform = process.platform): string {
+  return platform === "win32" ? "python" : "python3";
+}
+
+function warnIfPythonTooOld(): void {
+  const cmd = getPythonCommand();
+  try {
+    execSync(`${cmd} --version`, { stdio: "pipe" });
+  } catch {
+    // Missing Python is a separate error path; don't silently swap aliases.
+  }
+}
+```
+
+**规则 5**：不要假设 AI CLI 使用的 Python 版本与您的 shell 的 `python3` 匹配。用户终端可能把 `python3` 解析到 Homebrew 3.11，但 AI CLI 主机（包括企业分叉 Claude Code / Cursor 发行版）生成 hook 子进程具有解析 `python3` → `/usr/bin/python3` → macOS 系统 3.9 的最小路径。分布式模板必须以最低的合理版本为目标，或者使用 `from __future__ import annotations` 作为 PEP 604 语法。请参阅 `cli/backend/script-conventions.md` → **关键：PEP 604 注释需要 `from __future__ import annotations`** 进行硬规则和审核检查。
+
+**规则 6**：当从 Python 调用 Python 时，使用 `sys.executable`：
+
+```python
+import sys
+import subprocess
+
+# BAD - Hardcoded command
+subprocess.run(["python3", "other_script.py"])
+
+# GOOD - Use current interpreter
+subprocess.run([sys.executable, "other_script.py"])
+```
+
+### 2. 路径处理
+
+| 假设 | macOS/Linux | Windows |
+|------------|-------------|---------|
+| `/` 分隔符 | ✅ 有效 | ⚠️有时有效 |
+| `\` 分隔符 | ❌ 转义字符 | ✅ 原生 |
+| `pathlib.Path` | ✅ 有效 | ✅ 有效 |
+
+**规则 (Python)**：对所有路径操作使用 `pathlib.Path`。
+
+```python
+# BAD - String concatenation
+path = base + "/" + filename
+
+# GOOD - pathlib
+from pathlib import Path
+path = Path(base) / filename
+```
+
+#### 逻辑键与文件系统路径 (TypeScript)
+
+路径字符串承担两种不同角色，**必须区别处理。**
+
+| 角色 | 操作系统本机（Windows 上的 `\`） | 始终 POSIX (`/`) |
+|------|---------------------------|--------------------|
+| `fs.readFileSync(p)` / `path.join(cwd, x)` 用于 fs 调用 | ✅ 必须 | ❌ 在 Windows 上可能失败 |
+| `Map<relPath, content>` key、JSON 字段、hash 字典 key，以及任何跨操作系统持久化的内容 | ❌ 会导致跨 OS 不一致 | ✅ 必须 |
+
+**规则**：只要路径字符串会跨操作系统传递或被持久化（例如由另一操作系统消费的 Map key、JSON 字段、hash 字典 key），就规范化为 POSIX。直接传给 `fs.*` 时则保留操作系统原生形式。
+
+**单一事实来源**：`packages/cli/src/utils/posix.ts` 导出 `toPosix(p)`。不要在每个 `path.join` 调用点散落 `replaceAll('\\', '/')`；只在边界处应用一次 `toPosix`：collector 输出（Map key 进入 hash 字典）或写入时（`JSON.stringify` 之前的 `saveHashes`）。
+
+```typescript
+// BAD - logical key carries OS-native separator
+function collectTemplates(): Map<string, string> {
+  const files = new Map<string, string>();
+  for (const entry of walk(dir)) {
+    files.set(path.join(".opencode", entry), readFile(entry));  // \ on Windows
+  }
+  return files;
+}
+
+// GOOD - normalize at the boundary
+import { toPosix } from "../utils/posix.js";
+
+function collectTemplates(): Map<string, string> {
+  const files = new Map<string, string>();
+  for (const entry of walk(dir)) {
+    files.set(toPosix(path.join(".opencode", entry)), readFile(entry));
+  }
+  return files;
+}
+
+// ALSO ACCEPTABLE - write-side defense (for storage helpers like saveHashes)
+function saveHashes(cwd: string, hashes: Record<string, string>): void {
+  const normalized = Object.fromEntries(
+    Object.entries(hashes).map(([k, v]) => [toPosix(k), v])
+  );
+  fs.writeFileSync(getHashesPath(cwd), JSON.stringify(normalized, null, 2));
+}
+```
+
+**常见问题来源**：`path.relative(cwd, fullPath)` 在 Windows 上生成 `\`。如果您随后使用该字符串作为哈希字典查找键 (`hashes[relPath]`)，则首先使用 `toPosix`，否则在 Windows 上查找会失败。
+
+### 3. 行结尾
+
+| 格式 | macOS/Linux | Windows | Git |
+|--------|-------------|---------|-----|
+| `\n` (LF) | ✅ 原生 | ⚠️ 部分工具 | ✅ 规范化 |
+| `\r\n` (CRLF) | ⚠️ 多余字符 | ✅ 原生 | 会被转换 |
+
+**规则 1**：使用 `.gitattributes` 强制行结尾一致。
+
+```gitattributes
+* text=auto eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+```
+
+**规则 2**：跨平台对**内容**计算 hash 或进行比较时，先统一换行符，再计算 hash。 `.gitattributes` 仅管理 git checkout — 由用户、脚本或 `core.autocrlf=true` 编写的文件仍可能以 CRLF 形式到达，并且 `sha256(LF)` ≠ `sha256(CRLF)` 对于其他相同的内容。
+
+```typescript
+// BAD - Windows users with autocrlf=true get a different hash
+export function computeHash(content: string): string {
+  return createHash("sha256").update(content, "utf-8").digest("hex");
+}
+
+// GOOD - normalize before hashing so logical content hashes identically
+export function computeHash(content: string): string {
+  const normalized = content.replace(/\r\n/g, "\n");
+  return createHash("sha256").update(normalized, "utf-8").digest("hex");
+}
+```
+
+只要哈希跨越操作系统边界（模板哈希字典、存储在 JSON 中的内容指纹、针对远程 registry 的完整性检查），就应用此规则。
+
+### 4. 环境变量
+
+| 变量 | macOS/Linux | Windows |
+|----------|-------------|---------|
+| `HOME` | ✅ 已设置 | ❌ 使用 `USERPROFILE` |
+| `PATH` 分隔符 | `:` | `;` |
+| 区分大小写 | ✅ 区分大小写 | ❌ 不区分大小写 |
+
+**规则 1**：使用 `pathlib.Path.home()` 而不是环境变量。
+
+```python
+# BAD
+home = os.environ.get("HOME")
+
+# GOOD
+home = Path.home()
+```
+
+**规则2**：将环境变量注入shell commands时，生成
+将解析 command 的实际 shell 的前缀。不选择
+不要只根据操作系统选择语法。Windows 上 AI 工具提供的 “Bash” 界面，实际可能通过 PowerShell、Git Bash、MSYS2 或其他 POSIX-like shell 执行。
+
+```javascript
+// BAD - breaks when the host shell is PowerShell
+command = `export TRELLIS_CONTEXT_ID=${shellQuote(contextKey)}; ${command}`;
+
+// GOOD - shell-dialect-aware command prefix
+const prefix = process.platform === "win32" && !isWindowsPosixShell(process.env)
+  ? `$env:TRELLIS_CONTEXT_ID = ${powershellQuote(contextKey)}; `
+  : `export TRELLIS_CONTEXT_ID=${shellQuote(contextKey)}; `;
+command = `${prefix}${command}`;
+```
+
+在 Windows 上，处理 `MSYSTEM`、`MINGW_PREFIX`、`OSTYPE=msys|mingw|cygwin`、
+`SHELL=...bash`，或特定于平台的 Git Bash 设置作为 POSIX-shell
+信号。当没有 POSIX-shell 时，将 PowerShell 保留为 Windows 默认值
+信号。
+
+还要使重复注入检测能够识别 shell。只匹配的后卫
+`export VAR=` 将错过 PowerShell 的 `$env:VAR = ...` 表单，并且可以包装
+第二次已经正确的 command 。
+
+### 5. 命令可用性
+
+| 命令 | macOS/Linux | Windows |
+|---------|-------------|---------|
+| `grep` | ✅ 内置 | ❌ 不可用 |
+| `find` | ✅ 内置 | ⚠️ 不同的语法 |
+| `cat` | ✅ 内置 | ❌使用`type` |
+| `tail -f` | ✅ 内置 | ❌ 不可用 |
+
+**规则**：尽可能使用 Python 标准库而不是 shell commands 。
+
+```python
+# BAD - tail -f is not available on Windows
+subprocess.run(["tail", "-f", log_file])
+
+# GOOD - Cross-platform implementation
+def tail_follow(file_path: Path) -> None:
+    """Follow a file like 'tail -f', cross-platform compatible."""
+    with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+        f.seek(0, 2)  # Go to end
+        while True:
+            line = f.readline()
+            if line:
+                print(line, end="", flush=True)
+            else:
+                time.sleep(0.1)
+```
+
+### Agent 沙箱中的可选 advisory check
+
+AI CLI 子进程可能无法访问外网，即使用户的普通终端可以联网。当本地 CLI 已经提供所需信息时，优先执行本地 CLI 探测，不要依赖可选的网络探测。
+
+**规则 1**：不要让失败的可选 advisory check 提前消耗 once-per-session marker。只有脚本解析出可用值并能做出预期判断后，才写入 marker；否则，一次临时的沙箱或网络故障会让本次 session 剩余时间都看不到提示。
+
+**规则 2**：如果本地 command 可以提供所需值，请用较短 timeout 运行并捕获输出。例如，`trellis --version` 已经执行 CLI 的版本比较逻辑，可以直接支持可操作的更新 prompt，无需重复实现 npm registry 解析。
+
+**规则 3**：advisory check 失败时应保持静默。不能因为检查无法完成，就让面向用户的上下文输出失败或产生噪音。
+
+### 6. 文件编码
+
+| 默认编码 | macOS/Linux | Windows |
+|------------------|-------------|---------|
+| 终端 | UTF-8 | 通常为 CP1252 或 GBK |
+| 文件输入/输出 | UTF-8 | 系统区域设置 |
+| git 输出 | UTF-8 | 可能有所不同 |
+
+**规则**：始终显式指定 `encoding="utf-8"` 并使用 `errors="replace"`。
+
+> **清单**：编写打印非 ASCII 的脚本时，您是否配置了 stdout 编码？
+> 具体模式请参见`backend/script-conventions.md`。
+
+```python
+# BAD - Relies on system default
+with open(file, "r") as f:
+    content = f.read()
+
+result = subprocess.run(cmd, capture_output=True, text=True)
+
+# GOOD - Explicit encoding with error handling
+with open(file, "r", encoding="utf-8", errors="replace") as f:
+    content = f.read()
+
+result = subprocess.run(
+    cmd,
+    capture_output=True,
+    text=True,
+    encoding="utf-8",
+    errors="replace"
+)
+```
+
+**Git commands**：强制 UTF-8 输出编码：
+
+```python
+# Force git to output UTF-8
+git_args = ["git", "-c", "i18n.logOutputEncoding=UTF-8"] + args
+result = subprocess.run(
+    git_args,
+    capture_output=True,
+    text=True,
+    encoding="utf-8",
+    errors="replace"
+)
+```
+
+---
+
+## 变更传播清单
+
+进行与平台相关的更改时，请检查**所有这些位置**：
+
+### 命令/技能同步
+- [ ] 新的 command/skill 添加到所有平台（claude、cursor、iflow、codex 和任何新平台）
+- [ ] 每个平台的测试文件均已更新为 `EXPECTED_COMMAND_NAMES` / `EXPECTED_SKILL_NAMES` 中的新条目
+- [ ] 如果添加新的必需 command，则平台集成 spec 所需的 command 表会更新
+- [ ] 命令格式符合平台约定（请参阅 `platform-integration.md` → 按平台划分的命令格式）
+
+### 文档和帮助文本
+- [ ] Python 文件顶部的文档字符串
+- [ ] `--help` 输出/argparse 描述
+- [ ] README 中的使用示例
+- [ ] 提示 commands 的错误消息
+- [ ] Markdown 文档（`.md` 文件）
+
+### 代码位置
+- [ ] `src/templates/` - 新项目的模板文件
+- [ ] `.trellis/scripts/` - 项目自己的脚本（如果是自托管）
+- [ ] `dist/` - 构建输出（更改后重建）
+
+### 搜索模式
+```bash
+# Find all places that might need updating
+grep -r "python [a-z]" --include="*.py" --include="*.md"
+grep -r "{{PYTHON_CMD}}\\|python3\\|python " --include="*.py" --include="*.md"
+```
+
+---
+
+## 预提交清单
+
+在提交跨平台代码之前：
+
+- [ ] 面向用户的 Python 调用是平台感知的（Windows 上为 `python`，其他地方为 `python3`）或使用 `{{PYTHON_CMD}}`
+- [ ] Python 来自 Python 的子进程使用 `sys.executable`
+- [ ] 所有路径都使用 `pathlib.Path`
+- [ ] 无硬编码路径分隔符（`/` 或 `\`）
+- [ ] 用作逻辑/持久键的路径字符串（映射键、JSON 字段、哈希字典键）通过 `toPosix()` 进行规范化； `fs.*` 调用保留操作系统本机路径
+- [ ] 跨操作系统计算的内容哈希在哈希之前规范行结尾 (`\r\n` → `\n`)
+- [ ] 具有潜在遗留污染的跨操作系统 JSON 带有 `__version` 哨兵，加载器会丢弃未知/遗留版本
+- [ ] 没有特定于平台的 commands 且没有后备（例如 `tail -f`）
+- [ ] 可选 advisory check 失败时不会提前消耗 once-per-session marker
+- [ ] 所有文件 I/O 指定 `encoding="utf-8"` 和 `errors="replace"`
+- [ ] 所有子进程调用都指定 `encoding="utf-8"` 和 `errors="replace"`
+- [ ] Git commands 使用 `-c i18n.logOutputEncoding=UTF-8`
+- [ ] 外部工具 API 格式已从文档中验证
+- [ ] 文档与代码行为相匹配
+- [ ] 运行搜索以查找所有受影响的位置
+
+### 7. 外部工具 API 契约
+
+当与外部工具（Claude Code、Cursor等）集成时，它们的API合约是**隐式假设**。
+
+**规则**：从官方文档验证 API 格式，不要猜测。
+
+```python
+# BAD - Guessed format
+output = {"continue": True, "message": "..."}
+
+# GOOD - Verified format from documentation
+output = {
+    "hookSpecificOutput": {
+        "hookEventName": "SessionStart",
+        "additionalContext": "..."
+    }
+}
+```
+
+> **警告**：不同的 hook 类型可能具有不同的输出格式。
+> 请务必检查每个 hook 事件的具体文档。
+
+---
+
+## 跨平台持久化 JSON：架构迁移哨兵
+
+当 JSON 文件可以跨操作系统读取/写入（提交到 git、通过云同步、在机器之间复制）**并且旧格式可能已经存在于具有跨平台污染的用户磁盘上**（Windows 风格的密钥、CRLF 派生的哈希值、区域设置编码的字符串）时，添加 `__version` 哨兵并让加载器丢弃旧格式，以便写入器重新生成干净的格式数据。
+
+**为什么不就地迁移？** 路径键迁移（`\\` → `/`）加上哈希输入迁移（CRLF → LF 重新哈希）加上编码修复是相关的 - 尝试转换旧的有效负载有产生错误值的风险。丢弃和重新生成是**安全的**：数据可以从磁盘重新计算，并且 `loadX` 返回 `{}` 触发现有的初始化/更新路径来重建规范条目。
+
+```typescript
+const SCHEMA_VERSION = 2;
+type StoredV2 = { __version: number; hashes: Record<string, string> };
+
+export function loadHashes(cwd: string): Record<string, string> {
+  const file = getHashesPath(cwd);
+  if (!fs.existsSync(file)) return {};
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, "utf-8")) as unknown;
+
+    // Reject legacy flat format (no __version) and unknown versions.
+    // The next saveHashes / initializeHashes will write a fresh v2 file.
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      (parsed as StoredV2).__version !== SCHEMA_VERSION ||
+      typeof (parsed as StoredV2).hashes !== "object"
+    ) {
+      return {};
+    }
+    return (parsed as StoredV2).hashes;
+  } catch {
+    return {};
+  }
+}
+
+export function saveHashes(cwd: string, hashes: Record<string, string>): void {
+  const payload: StoredV2 = { __version: SCHEMA_VERSION, hashes };
+  fs.writeFileSync(getHashesPath(cwd), JSON.stringify(payload, null, 2));
+}
+```
+
+**何时申请**：
+- 哈希字典/内容指纹（例如 `.template-hashes.json`）
+- 缓存文件，其中过时的条目可从权威来源重新计算
+- 格式更改与跨平台修复相关的任何跨操作系统持久文件
+
+**何时不应用** — 如果丢失数据会伤害用户（task 状态、草稿、用户键入的设置）。在那里使用真正的迁移。 Sentinel+discard只有当数据可重新计算时才是安全的。
+
+**参考**：`packages/cli/src/utils/template-hash.ts` v2 信封。
+
+---
+
+## JSON/外部数据防御检查
+
+解析 JSON 或外部数据时，TypeScript 类型**仅在编译时**。运行时数据可能不匹配。
+
+**规则**：在使用必填字段之前始终添加防御检查。
+
+```typescript
+// BAD - Trusts TypeScript type definition
+interface MigrationItem {
+  from: string;  // TypeScript says required
+  to?: string;
+}
+
+function process(item: MigrationItem) {
+  const path = item.from;  // Runtime: could be undefined!
+}
+
+// GOOD - Defensive check before use
+function process(item: MigrationItem) {
+  if (!item.from) return;  // Skip invalid data
+  const path = item.from;  // Now guaranteed
+}
+```
+
+**何时申请**：
+- 解析 JSON 文件（清单、配置）
+- API 回复
+- 用户输入
+- 来自外部来源的任何数据
+
+**模式**：检查是否存在→然后使用
+
+```typescript
+// Filter pattern - skip invalid items
+const validItems = items.filter(item => item.from && item.to);
+
+// Early return pattern - bail on invalid
+if (!data.requiredField) {
+  console.warn("Missing required field");
+  return defaultValue;
+}
+```
+
+---
+
+## 常见错误
+
+### 1.“它可以在我的 Mac 上运行”
+
+```python
+# Developer's Mac
+subprocess.run(["./script.py"])  # Works!
+
+# User's Windows
+subprocess.run(["./script.py"])  # FileNotFoundError
+```
+
+### 2.“shebang应该处理它”
+
+```python
+#!/usr/bin/env python3
+# This line is IGNORED on Windows
+```
+
+### 3.“我更新了模板”
+
+```
+src/templates/script.py  ← Updated
+.trellis/scripts/script.py  ← Forgot to sync!
+```
+
+### 4.“Python 3 始终是 python3”
+
+```bash
+# Developer's Mac/Linux
+python3 script.py  # Works!
+
+# User's Windows (Python from python.org)
+python3 script.py  # 'python3' is not recognized
+python script.py   # Works!
+
+# Trellis docs/config should say the rule, not guess one alias everywhere
+{{PYTHON_CMD}} script.py
+```
+
+### 5.“UTF-8 是所有地方的默认值”
+
+```python
+# Developer's Mac (UTF-8 default)
+subprocess.run(cmd, capture_output=True, text=True)  # Works!
+
+# User's Windows (GBK/CP1252 default)
+subprocess.run(cmd, capture_output=True, text=True)  # Garbled Chinese/Unicode
+```
+
+> **注意**：标准输出编码也会受到影响。请参阅 `backend/script-conventions.md` 进行修复。
+
+---
+
+## 恢复：当您发现平台错误时
+
+1. **解决当前问题**
+2. **搜索相似模式**（grep 代码库）
+3. **使用新模式更新本指南**
+4. **添加到预提交清单**（如果重复）
+
+---
+
+**核心原则**：如果不明确，那就是一个假设。并且假设被打破。
+
+---
+
+## 发布清单：版本化文件
+
+发布新版本时，请确保创建/更新**所有版本化文件**：
+
+- [ ] `src/migrations/manifests/{version}.json` - 迁移清单存在
+- [ ] 清单具有正确的版本、描述、变更日志
+- [ ] `pnpm build` 将清单复制到 `dist/`
+- [ ] 测试旧版本的升级路径（不仅仅是相邻版本）
+
+**为什么这很重要**：当用户从旧版本升级时，缺少清单会导致“路径未定义”错误。
+
+```bash
+# Verify all expected manifests exist
+ls src/migrations/manifests/
+
+# Test upgrade path
+node -e "
+const { getMigrationsForVersion } = require('./dist/migrations/index.js');
+console.log('From 0.2.12:', getMigrationsForVersion('0.2.12', 'CURRENT').length);
+"
+```
+
+## 发布清单：捆绑资产
+
+当发行说明或文档声称资产已捆绑、自动安装或
+包含在 Trellis 中，验证整个分发路径：
+
+- [ ] 源文件存在于被标记的分支中，而不仅仅存在于另一个分支中，
+文档子模块，或市场树。
+- [ ] `pnpm build` 将资产复制到 `dist/templates/**` 中。
+- [ ] `npm pack --dry-run --json` 包含预期的 `dist/**` 路径。
+- [ ] 构建的二进制文件将资产安装在新的临时存储库中。
+- [ ] `.trellis/.template-hashes.json` 跟踪生成的资产路径。
+- [ ] `trellis update --dry-run` 在该温度下报告 `Already up to date!`
+存储库。
+
+**为什么这很重要**：文档/变更日志文本可以独立于代码移动
+拥有可分发模板的分支。功能可以记录为捆绑的
+虽然已发布的 npm tarball 仍然缺少文件。
+
+```bash
+pnpm --filter @mindfoldhq/trellis build
+
+cd packages/cli
+npm pack --dry-run --json | grep 'dist/templates/common/bundled-skills/<skill>/SKILL.md'
+cd ../..
+
+tmpdir=$(mktemp -d /tmp/trellis-built-bin-smoke-XXXXXX)
+printf '{"name":"trellis-smoke","version":"0.0.0"}\n' > "$tmpdir/package.json"
+git -C "$tmpdir" init -q
+(
+  cd "$tmpdir"
+  node /path/to/Trellis/packages/cli/bin/trellis.js init -u smoke --yes --claude --codex
+  test -f .claude/skills/<skill>/SKILL.md
+  test -f .agents/skills/<skill>/SKILL.md
+  grep -q '<skill>' .trellis/.template-hashes.json
+  node /path/to/Trellis/packages/cli/bin/trellis.js update --dry-run
+)
+```

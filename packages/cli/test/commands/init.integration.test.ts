@@ -50,6 +50,8 @@ import { init } from "../../src/commands/init.js";
 import { VERSION } from "../../src/constants/version.js";
 import { DIR_NAMES, FILE_NAMES, PATHS } from "../../src/constants/paths.js";
 import { collectPlatformTemplates } from "../../src/configurators/index.js";
+import { replacePythonCommandLiterals } from "../../src/configurators/shared.js";
+import { getWorkflowTemplate } from "../../src/templates/trellis/index.js";
 import { computeHash } from "../../src/utils/template-hash.js";
 import {
   COPILOT_INSTRUCTIONS_PATH,
@@ -60,10 +62,23 @@ import { execSync } from "node:child_process";
 // eslint-disable-next-line @typescript-eslint/no-empty-function
 const noop = () => {};
 
+function requirePlatformTemplates(
+  platform: Parameters<typeof collectPlatformTemplates>[0],
+  language: "en" | "zh",
+): Map<string, string> {
+  const templates = collectPlatformTemplates(platform, language);
+  if (!templates)
+    throw new Error(`Missing ${platform} templates for ${language}`);
+  return templates;
+}
+
 describe("init() integration", () => {
   let tmpDir: string;
+  let originalTrellisLanguage: string | undefined;
 
   beforeEach(() => {
+    originalTrellisLanguage = process.env.TRELLIS_LANGUAGE;
+    delete process.env.TRELLIS_LANGUAGE;
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "trellis-init-int-"));
     vi.spyOn(process, "cwd").mockReturnValue(tmpDir);
     vi.spyOn(console, "log").mockImplementation(noop);
@@ -81,6 +96,11 @@ describe("init() integration", () => {
   });
 
   afterEach(() => {
+    if (originalTrellisLanguage === undefined) {
+      delete process.env.TRELLIS_LANGUAGE;
+    } else {
+      process.env.TRELLIS_LANGUAGE = originalTrellisLanguage;
+    }
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -160,29 +180,227 @@ describe("init() integration", () => {
     expect(gitattributes).not.toContain("index.md merge=union");
   });
 
-  it("#1c lands English workflow.md by default and Chinese under --language zh", async () => {
-    // Default: English content lands at .trellis/workflow.md
+  it("#1c lands exact English by default and locale-neutral Chinese under --language zh", async () => {
     await init({ yes: true });
     const enContent = fs.readFileSync(
       path.join(tmpDir, PATHS.WORKFLOW_GUIDE_FILE),
       "utf-8",
     );
-    expect(enContent.startsWith("# Development Workflow")).toBe(true);
+    expect(enContent).toBe(
+      replacePythonCommandLiterals(getWorkflowTemplate("en")),
+    );
+    const englishClaude = requirePlatformTemplates("claude-code", "en");
+    for (const file of [
+      ".claude/commands/trellis/continue.md",
+      ".claude/skills/trellis-before-dev/SKILL.md",
+      ".claude/agents/trellis-implement.md",
+    ]) {
+      expect(fs.readFileSync(path.join(tmpDir, file), "utf-8"), file).toBe(
+        englishClaude.get(file),
+      );
+    }
 
-    // Re-init with --language zh in a separate temp dir
     const tmpDir2 = fs.mkdtempSync(path.join(os.tmpdir(), "trellis-init-zh-"));
     vi.mocked(process.cwd).mockReturnValue(tmpDir2);
     try {
       await init({ yes: true, language: "zh" });
-      const zhContent = fs.readFileSync(
-        path.join(tmpDir2, PATHS.WORKFLOW_GUIDE_FILE),
-        "utf-8",
+      const workflowPath = path.join(tmpDir2, PATHS.WORKFLOW_GUIDE_FILE);
+      const zhContent = fs.readFileSync(workflowPath, "utf-8");
+      const expectedZh = replacePythonCommandLiterals(
+        getWorkflowTemplate("zh"),
       );
-      expect(zhContent.startsWith("# 开发工作流")).toBe(true);
+      expect(zhContent).toBe(expectedZh);
+      expect(
+        fs.existsSync(path.join(tmpDir2, ".trellis", "workflow.zh.md")),
+      ).toBe(false);
+
+      const backendSpecPath = path.join(
+        tmpDir2,
+        ".trellis",
+        "spec",
+        "backend",
+        "index.md",
+      );
+      const guideSpecPath = path.join(
+        tmpDir2,
+        ".trellis",
+        "spec",
+        "guides",
+        "index.md",
+      );
+      expect(fs.readFileSync(backendSpecPath, "utf-8")).toContain(
+        "# Backend 开发指南",
+      );
+      expect(fs.readFileSync(guideSpecPath, "utf-8")).toContain("# 思考指南");
+      expect(
+        fs.existsSync(
+          path.join(
+            tmpDir2,
+            ".trellis",
+            "spec",
+            "guides",
+            "cross-platform-thinking-guide.md",
+          ),
+        ),
+      ).toBe(false);
+      expect(
+        fs.existsSync(
+          path.join(tmpDir2, ".trellis", "spec", "backend", "index.zh.md"),
+        ),
+      ).toBe(false);
+
+      const chineseClaude = requirePlatformTemplates("claude-code", "zh");
+      const localizedFiles = [
+        ".claude/commands/trellis/continue.md",
+        ".claude/skills/trellis-before-dev/SKILL.md",
+        ".claude/agents/trellis-implement.md",
+      ];
+      for (const file of localizedFiles) {
+        const landed = fs.readFileSync(path.join(tmpDir2, file), "utf-8");
+        expect(landed, file).toBe(chineseClaude.get(file));
+        expect(landed, file).toMatch(/[\u3400-\u9fff]/);
+        expect(file).not.toContain(".zh.");
+        expect(
+          fs.existsSync(
+            path.join(tmpDir2, file.replace(/(\.[^.]+)$/, ".zh$1")),
+          ),
+        ).toBe(false);
+      }
+
+      const hashFile = JSON.parse(
+        fs.readFileSync(
+          path.join(tmpDir2, DIR_NAMES.WORKFLOW, ".template-hashes.json"),
+          "utf-8",
+        ),
+      ) as { hashes?: Record<string, string> };
+      const hashes = hashFile.hashes ?? {};
+      expect(hashes[PATHS.WORKFLOW_GUIDE_FILE]).toBe(computeHash(zhContent));
+      expect(hashes[".trellis/workflow.zh.md"]).toBeUndefined();
+      for (const file of localizedFiles) {
+        const expected = chineseClaude.get(file);
+        if (expected === undefined)
+          throw new Error(`Missing template: ${file}`);
+        expect(hashes[file], file).toBe(computeHash(expected));
+        expect(hashes[file.replace(/(\.[^.]+)$/, ".zh$1")]).toBeUndefined();
+      }
+
+      const localizedSnapshot = new Map(
+        localizedFiles.map((file) => [
+          file,
+          fs.readFileSync(path.join(tmpDir2, file), "utf-8"),
+        ]),
+      );
+      await init({ yes: true, language: "zh", force: true });
+      const hashesAfterReinit =
+        (
+          JSON.parse(
+            fs.readFileSync(
+              path.join(tmpDir2, DIR_NAMES.WORKFLOW, ".template-hashes.json"),
+              "utf-8",
+            ),
+          ) as { hashes?: Record<string, string> }
+        ).hashes ?? {};
+      for (const [file, content] of localizedSnapshot) {
+        expect(fs.readFileSync(path.join(tmpDir2, file), "utf-8"), file).toBe(
+          content,
+        );
+        expect(hashesAfterReinit[file], file).toBe(computeHash(content));
+      }
     } finally {
       fs.rmSync(tmpDir2, { recursive: true, force: true });
-      delete process.env.TRELLIS_LANGUAGE;
     }
+  });
+
+  it("#1d propagates Chinese through representative Markdown, TOML, JSON, Copilot, Pi, and agent-less outputs", async () => {
+    await init({
+      yes: true,
+      language: "zh",
+      codex: true,
+      kiro: true,
+      gemini: true,
+      copilot: true,
+      pi: true,
+      kilo: true,
+    });
+
+    const representatives = [
+      ["codex", ".codex/agents/trellis-implement.toml"],
+      ["kiro", ".kiro/agents/trellis-implement.json"],
+      ["gemini", ".gemini/agents/trellis-implement.md"],
+      ["copilot", ".github/agents/trellis-implement.agent.md"],
+      ["pi", ".pi/agents/trellis-implement.md"],
+      ["kilo", ".kilocode/workflows/continue.md"],
+    ] as const;
+    const hashes =
+      (
+        JSON.parse(
+          fs.readFileSync(
+            path.join(tmpDir, DIR_NAMES.WORKFLOW, ".template-hashes.json"),
+            "utf-8",
+          ),
+        ) as { hashes?: Record<string, string> }
+      ).hashes ?? {};
+
+    for (const [platform, file] of representatives) {
+      const expected = requirePlatformTemplates(platform, "zh").get(file);
+      if (expected === undefined) throw new Error(`Missing template: ${file}`);
+      const landed = fs.readFileSync(path.join(tmpDir, file), "utf-8");
+      expect(landed, file).toBe(expected);
+      expect(landed, file).toMatch(/[\u3400-\u9fff]/);
+      expect(file).not.toContain(".zh.");
+      expect(hashes[file], file).toBe(computeHash(landed));
+    }
+  });
+
+  it("#1e existing-project add-platform fast path keeps the selected Chinese locale", async () => {
+    await init({ yes: true, language: "zh", claude: true });
+    expect(fs.existsSync(path.join(tmpDir, ".codex"))).toBe(false);
+
+    await init({ yes: true, language: "zh", codex: true });
+
+    const file = ".codex/agents/trellis-implement.toml";
+    const expected = requirePlatformTemplates("codex", "zh").get(file);
+    if (expected === undefined) throw new Error(`Missing template: ${file}`);
+    const landed = fs.readFileSync(path.join(tmpDir, file), "utf-8");
+    expect(landed).toBe(expected);
+    expect(landed).toMatch(/[\u3400-\u9fff]/);
+    expect(
+      fs.existsSync(
+        path.join(tmpDir, ".codex", "agents", "trellis-implement.zh.toml"),
+      ),
+    ).toBe(false);
+
+    const hashes =
+      (
+        JSON.parse(
+          fs.readFileSync(
+            path.join(tmpDir, DIR_NAMES.WORKFLOW, ".template-hashes.json"),
+            "utf-8",
+          ),
+        ) as { hashes?: Record<string, string> }
+      ).hashes ?? {};
+    expect(hashes[file]).toBe(computeHash(landed));
+    expect(hashes[".codex/agents/trellis-implement.zh.toml"]).toBeUndefined();
+  });
+
+  it("#1f invalid explicit language warns and lands English instead of config Chinese", async () => {
+    await init({ yes: true });
+    fs.writeFileSync(
+      path.join(tmpDir, DIR_NAMES.WORKFLOW, "config.yaml"),
+      "language: zh\n",
+      "utf-8",
+    );
+    const warn = vi.spyOn(console, "warn").mockImplementation(noop);
+
+    await init({ yes: true, force: true, language: "ja" });
+
+    expect(
+      fs.readFileSync(path.join(tmpDir, PATHS.WORKFLOW_GUIDE_FILE), "utf-8"),
+    ).toBe(replacePythonCommandLiterals(getWorkflowTemplate("en")));
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      '⚠ Invalid --language value: "ja"; falling back to en.',
+    );
   });
 
   it("#1b does not print the promotional pain-point block", async () => {

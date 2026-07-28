@@ -14,9 +14,12 @@ import {
   type AgentTemplate,
   type HookTemplate,
 } from "../template-utils.js";
+import { DEFAULT_LANGUAGE, type SupportedLanguage } from "../../utils/i18n.js";
 export type { AgentTemplate, HookTemplate };
 
 const { listMdAgents, getSettings } = createTemplateReader(import.meta.url);
 
-export const getAllAgents = (): AgentTemplate[] => listMdAgents();
+export const getAllAgents = (
+  language: SupportedLanguage = DEFAULT_LANGUAGE,
+): AgentTemplate[] => listMdAgents("agents", language);
 export const getSettingsTemplate = (): HookTemplate => getSettings();

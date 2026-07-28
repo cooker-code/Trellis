@@ -14,6 +14,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .config import _is_true_config_value, get_default_package, get_packages, get_spec_scope
+from .i18n import t
 from .paths import (
     DIR_SPEC,
     DIR_WORKFLOW,
@@ -128,28 +129,28 @@ def get_packages_section(repo_root: Path) -> str:
     pkg_info = get_packages_info(repo_root)
 
     lines: list[str] = []
-    lines.append("## PACKAGES")
+    lines.append(t("packages.header"))
 
     if not pkg_info:
-        lines.append("(single-repo mode)")
+        lines.append(t("packages.single_repo_mode"))
         layers = _scan_spec_layers(spec_dir)
         if layers:
-            lines.append(f"Spec layers: {', '.join(layers)}")
+            lines.append(t("packages.spec_layers", layers=", ".join(layers)))
         return "\n".join(lines)
 
     default_pkg = get_default_package(repo_root)
 
     for pkg in pkg_info:
         layers_str = f"  [{', '.join(pkg['specLayers'])}]" if pkg["specLayers"] else ""
-        submodule_tag = "  (submodule)" if pkg["isSubmodule"] else ""
-        git_repo_tag = "  (git repo)" if pkg["isGitRepo"] else ""
+        submodule_tag = t("packages.submodule_tag") if pkg["isSubmodule"] else ""
+        git_repo_tag = t("packages.git_repo_tag") if pkg["isGitRepo"] else ""
         default_tag = "  *" if pkg["default"] else ""
         lines.append(
             f"- {pkg['name']:<16} {pkg['path']:<20}{layers_str}{submodule_tag}{git_repo_tag}{default_tag}"
         )
 
     if default_pkg:
-        lines.append(f"Default package: {default_pkg}")
+        lines.append(t("packages.default_package", package=default_pkg))
 
     return "\n".join(lines)
 
@@ -164,11 +165,11 @@ def get_context_packages_text(repo_root: Path | None = None) -> str:
 
     if not pkg_info:
         spec_dir = repo_root / DIR_WORKFLOW / DIR_SPEC
-        lines.append("Single-repo project (no packages configured)")
+        lines.append(t("packages.single_repo_project"))
         lines.append("")
         layers = _scan_spec_layers(spec_dir)
         if layers:
-            lines.append(f"Spec layers: {', '.join(layers)}")
+            lines.append(t("packages.spec_layers", layers=", ".join(layers)))
         return "\n".join(lines)
 
     # Resolve scope for annotations
@@ -178,33 +179,33 @@ def get_context_packages_text(repo_root: Path | None = None) -> str:
     task_pkg = _get_active_task_package(repo_root)
     scope_set = _resolve_scope_set(packages_dict, spec_scope, task_pkg, default_pkg)
 
-    lines.append("## PACKAGES")
+    lines.append(t("packages.header"))
     lines.append("")
     for pkg in pkg_info:
-        default_tag = " (default)" if pkg["default"] else ""
+        default_tag = t("packages.default_tag") if pkg["default"] else ""
         type_tag = f" [{pkg['type']}]" if pkg["type"] != "local" else ""
-        git_tag = " [git repo]" if pkg["isGitRepo"] else ""
+        git_tag = t("packages.git_repo_bracket_tag") if pkg["isGitRepo"] else ""
 
         # Scope annotation
         scope_tag = ""
         if scope_set is not None and pkg["name"] not in scope_set:
-            scope_tag = " (out of scope)"
+            scope_tag = t("packages.out_of_scope_tag")
 
         lines.append(f"### {pkg['name']}{default_tag}{type_tag}{git_tag}{scope_tag}")
-        lines.append(f"Path: {pkg['path']}")
+        lines.append(t("packages.path", path=pkg["path"]))
         if pkg["specLayers"]:
-            lines.append(f"Spec layers: {', '.join(pkg['specLayers'])}")
+            lines.append(t("packages.spec_layers", layers=", ".join(pkg["specLayers"])))
             for layer in pkg["specLayers"]:
                 lines.append(f"  - .trellis/spec/{pkg['name']}/{layer}/index.md")
         else:
-            lines.append("Spec: not configured")
+            lines.append(t("packages.spec_not_configured"))
         lines.append("")
 
     # Also show shared guides
     guides_dir = repo_root / DIR_WORKFLOW / DIR_SPEC / "guides"
     if guides_dir.is_dir():
-        lines.append("### Shared Guides (always included)")
-        lines.append("Path: .trellis/spec/guides/index.md")
+        lines.append(t("packages.shared_guides"))
+        lines.append(t("packages.path", path=".trellis/spec/guides/index.md"))
         lines.append("")
 
     return "\n".join(lines)

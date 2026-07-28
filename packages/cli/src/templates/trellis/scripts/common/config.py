@@ -240,8 +240,10 @@ def get_session_auto_commit(repo_root: Path | None = None) -> bool:
         return True
     if s in ("false", "no", "0", "off"):
         return False
+    from .i18n import t
+
     print(
-        f"[WARN] invalid session_auto_commit value: {raw!r}; using true (default)",
+        t("config.invalid_session_auto_commit", value=repr(raw)),
         file=sys.stderr,
     )
     return DEFAULT_SESSION_AUTO_COMMIT
@@ -552,8 +554,10 @@ def resolve_package(
     if task_package and isinstance(task_package, str):
         if task_package in packages:
             return task_package
+        from .i18n import t
+
         print(
-            f"Warning: task.json package '{task_package}' not found in config, skipping",
+            t("config.task_package_missing", package=task_package),
             file=sys.stderr,
         )
 
@@ -562,8 +566,10 @@ def resolve_package(
     if default:
         if default in packages:
             return default
+        from .i18n import t
+
         print(
-            f"Warning: default_package '{default}' not found in config, skipping",
+            t("config.default_package_missing", package=default),
             file=sys.stderr,
         )
 
