@@ -227,6 +227,28 @@ describe("distributed Python i18n", () => {
       /^\.trellis\/tasks\/\d{2}-\d{2}-stable-path\n$/,
     );
     expect(created.stderr).toContain("已创建 task");
+    expect(
+      fs.readFileSync(path.join(tmpDir, created.stdout.trim(), "prd.md"), "utf-8"),
+    ).toBe(`# 测试任务
+
+## 目标
+
+待补充。
+
+## 需求
+
+- 待补充
+
+## 验收标准
+
+- [ ] 待补充
+
+## 说明
+
+- \`prd.md\` 聚焦需求、约束与验收标准。
+- 轻量任务可以只保留 PRD（产品需求文档）。
+- 复杂任务应在运行 \`task.py start\` 前补充 \`design.md\`（技术设计）和 \`implement.md\`（实施计划）。
+`);
   });
 
   it("preserves create/start/finish/archive lifecycle hooks while localizing Python prose", () => {

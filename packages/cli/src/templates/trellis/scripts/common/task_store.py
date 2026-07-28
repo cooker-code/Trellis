@@ -32,7 +32,7 @@ from .config import (
     validate_package,
 )
 from .git import branch_exists_locally, resolve_default_branch, run_git
-from .i18n import t
+from .i18n import get_locale, t
 from .io import read_json, write_json
 from .log import Colors, colored
 from .paths import (
@@ -197,8 +197,31 @@ def _parse_meta_pairs(pairs: list[str] | None) -> dict[str, str] | None:
 
 def _default_prd_content(title: str, description: str | None = None) -> str:
     """Return the default PRD skeleton created with every task."""
-    goal = (description or "").strip() or "TBD."
-    heading = title.strip() or "Untitled task"
+    language = get_locale()
+    goal = (description or "").strip()
+    heading = title.strip() or ("未命名任务" if language == "zh" else "Untitled task")
+    if language == "zh":
+        return f"""# {heading}
+
+## 目标
+
+{goal or "待补充。"}
+
+## 需求
+
+- 待补充
+
+## 验收标准
+
+- [ ] 待补充
+
+## 说明
+
+- `prd.md` 聚焦需求、约束与验收标准。
+- 轻量任务可以只保留 PRD（产品需求文档）。
+- 复杂任务应在运行 `task.py start` 前补充 `design.md`（技术设计）和 `implement.md`（实施计划）。
+"""
+    goal = goal or "TBD."
     return f"""# {heading}
 
 ## Goal
