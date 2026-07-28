@@ -26,6 +26,8 @@ interface MarkdownShape {
 // practices) are intentionally absent so a Chinese sentence with an English
 // tail fails instead of passing merely because the line contains one CJK rune.
 const TECHNICAL_PHRASES = [
+  "English（中文解释）",
+  "language: zh",
   "Active task",
   "Claude Code",
   "Factory Droid",

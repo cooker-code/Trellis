@@ -13,10 +13,12 @@ developer_instructions = """
 
 ## Trellis 上下文加载协议
 
-在上方输入中查找 `<!-- trellis-hook-injected -->` 标记。
+- 首先在上方输入中查找 `Full hook output saved to: <path>`。如果存在，表示可见的 `SubagentStart` 输出已被截断；开始调研前读取所引用的文件。
 
-- 如果存在该标记，原生 `SubagentStart` hook 已提供 `Active task: <path>` 标头和仅供调研使用的上下文。使用该 Task 路径。
-- 如果不存在该标记，在派发提示中查找 `Active task: <path>`。如果仍然没有，请向主 Session 询问路径；不要运行 `task.py current`，不要猜测，也不要使用其他 Session 的 Task。
+- 如果无法读取所引用的文件，使用下方的活动 Task 回退流程。
+- 如果不存在已保存输出通知，且存在 `<!-- trellis-hook-injected -->` 标记，表示 hook 已提供完整的 `Active task: <path>` 标头和仅供调研使用的上下文。
+- 如果不存在已保存输出通知且该标记也不存在，使用下方的活动 Task 回退流程。
+- 回退时，在派发提示中查找 `Active task: <path>`。如果仍然没有，请向主 Session 询问路径；不要运行 `task.py current`，不要猜测，也不要使用其他 Session 的 Task。
 - 不要加载 `implement.jsonl` 或 `check.jsonl`；调研角色相互隔离。
 
 ## 工作流程

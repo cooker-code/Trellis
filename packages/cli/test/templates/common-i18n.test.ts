@@ -144,6 +144,9 @@ describe("common localized templates", () => {
     expect(placeholders(getPullBasedPreludeTemplate("zh"))).toEqual(
       placeholders(getPullBasedPreludeTemplate("en")),
     );
+    expect(getPullBasedPreludeTemplate("zh")).toContain("中文 Task 内容规范");
+    expect(getPullBasedPreludeTemplate("zh")).toContain("English（中文解释）");
+    expect(getPullBasedPreludeTemplate("zh")).toContain("不得批量改写历史归档 task 或其他开发者的 task");
   });
 
   it("preserves legacy English skill bytes while localizing Chinese frontmatter", () => {
