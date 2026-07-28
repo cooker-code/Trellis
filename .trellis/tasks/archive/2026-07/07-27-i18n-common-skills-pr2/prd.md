@@ -107,18 +107,18 @@ Users selecting `zh` receive Chinese human/LLM-facing prose at the existing unsu
 
 ## Acceptance criteria
 
-- [ ] Every current English common command and single-file skill has a Chinese sibling; `zh` resolution returns Chinese content under unchanged logical names.
-- [ ] Every physical English Trellis agent source across the 10 source-owning platforms has a Chinese sibling in the correct Markdown/TOML/JSON format.
-- [ ] All 11 agent-capable platforms generate Chinese research/implement/check definitions at their existing target paths; Copilot derives Chinese output from Cursor without a duplicate source tree.
-- [ ] Missing body/description/prelude/key translations fall back to English without failure or extra output paths.
-- [ ] `en -> zh -> en` in one process returns correct locale bytes without cache contamination.
-- [ ] English and Chinese platform maps have identical key sets and no key contains `.zh.`.
-- [ ] Every platform's init writer and update collector produce byte-identical content for each locale.
-- [ ] English generated output remains byte-compatible with pre-PR2 behavior.
-- [ ] Generated Chinese skill/Qoder descriptions and pull-based preludes are Chinese while stable technical tokens remain unchanged.
-- [ ] Cursor, Gemini, OpenCode, Codex, Kiro, Copilot, Pi, recursion-guard, context-loading, and research-persistence format contracts remain valid.
-- [ ] Codex/Gemini overlapping `.agents/skills/` content is byte-identical under both locales.
-- [ ] Fresh `zh` init and existing-project `zh` add-platform paths land representative Chinese command/skill/agent files and unsuffixed hash keys.
-- [ ] Pristine English-to-Chinese and Chinese-to-English update switches refresh bytes/hashes at unchanged paths and are idempotent on rerun.
-- [ ] User-modified translated files continue through existing conflict protection rather than being silently overwritten.
-- [ ] `pnpm run i18n:check`, lint, typecheck, focused tests, full tests, build, npm pack inspection, and built-binary smoke pass.
+- [x] Every current English common command and single-file skill has a Chinese sibling; `zh` resolution returns Chinese content under unchanged logical names.
+- [x] Every physical English Trellis agent source across the 10 source-owning platforms has a Chinese sibling in the correct Markdown/TOML/JSON format.
+- [x] All 11 agent-capable platforms generate Chinese research/implement/check definitions at their existing target paths; Copilot derives Chinese output from Cursor without a duplicate source tree.
+- [x] Missing body/description/prelude/key translations fall back to English without failure or extra output paths.
+- [x] `en -> zh -> en` in one process returns correct locale bytes without cache contamination.
+- [x] English and Chinese platform maps have identical key sets and no key contains `.zh.`.
+- [x] Every platform's init writer and update collector produce byte-identical content for each locale.
+- [x] English generated output remains byte-compatible with pre-PR2 behavior.
+- [x] Generated Chinese skill/Qoder descriptions and pull-based preludes are Chinese while stable technical tokens remain unchanged.
+- [x] Cursor, Gemini, OpenCode, Codex, Kiro, Copilot, Pi, recursion-guard, context-loading, and research-persistence format contracts remain valid.
+- [x] Codex/Gemini overlapping `.agents/skills/` content is byte-identical under both locales.
+- [x] Fresh `zh` init and existing-project `zh` add-platform paths land representative Chinese command/skill/agent files and unsuffixed hash keys.
+- [x] Pristine English-to-Chinese and Chinese-to-English update switches refresh bytes/hashes at unchanged paths and are idempotent on rerun.
+- [x] User-modified translated files continue through existing conflict protection rather than being silently overwritten.
+- [x] `pnpm run i18n:check`, lint, typecheck, focused tests, full tests, build, npm pack inspection, and built-binary smoke pass.

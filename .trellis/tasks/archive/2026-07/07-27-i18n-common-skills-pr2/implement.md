@@ -158,3 +158,10 @@ pnpm --filter @mindfoldhq/trellis build
 - `npm pack --dry-run --json`: representative common/Markdown/TOML/JSON sidecars present (767 files total).
 - Built CLI smoke: Chinese init/update no-op passed with unsuffixed outputs and hash keys.
 - i18n checker: 85 translations checked; 0 missing, 0 structural issues, 0 Python issues, and one warning-only PR1 workflow staleness notice.
+
+## Closure verification
+
+- Integrated implementation commit: `bf5a6718 feat(i18n): 完成中文本地化内容链路`.
+- CLI build, lint, TypeScript typecheck, and Python type/lint check completed successfully.
+- Current i18n check covered 85 translations with 0 missing, 0 drift, 0 structural issues, and 0 Python issues.
+- Current full CLI suite passed: 81 test files, 1788 tests.
