@@ -223,15 +223,16 @@ gitnexus detect-changes --scope compare --base-ref main
 - [x] `task.py validate` 保持原有 context manifest 职责，未扩展为 PRD runtime gate。
 - [x] `pnpm check:prd-contract`、全量 `pnpm test`、`pnpm lint`、`pnpm typecheck`、`pnpm build`、docs-site lint 与 `git diff --check` 通过。
 - [x] `task.py validate` 通过，`implement.jsonl` 与 `check.jsonl` 各有 7 条真实上下文。
+- [x] 父仓库产品实现与 submodule pointer 已提交并推送：commit `d3f34d60`。
+- [x] 父仓库 draft PR 已创建：`cooker-code/Trellis#4`，目标分支为 `data-developer`。
+- [x] GitNexus 已在当前 worktree 重建索引并重跑 `detect-changes`；工具未识别符号级变更，因此最终仍以真实 diff、全量测试与 PR 回读作为主要放行证据。
 
 ### 待办
 
 - [ ] 用户审阅本轮实现结果。
-- [ ] 提交父仓库产品实现与 submodule pointer，推送并创建目标为 `data-developer` 的 draft PR。
 - [ ] 上游合并 Marketplace/docs-site PR 后，确认父仓库 submodule pointer 在上游 URL 可获取。
-- [ ] 在可刷新到当前 worktree 的 GitNexus 索引上重跑 `detect-changes`；当前索引落后 5 个提交，compare 结果不能作为可靠放行证据。
 - [ ] 获得用户后续授权后再进入 finish/commit/archive。
 
 ### 阻塞
 
-- [ ] GitNexus 当前只索引普通仓库旧状态，无法准确映射本 worktree 的未提交差异。
+- 无本地阻塞；等待用户审阅及两个上游 submodule PR 合并。
