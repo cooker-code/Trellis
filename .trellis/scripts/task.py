@@ -27,7 +27,6 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from pathlib import Path
 
 from common.i18n import set_locale, t
 from common.log import Colors, colored
@@ -65,13 +64,6 @@ from common.task_context import (
     cmd_add_context,
     cmd_validate,
     cmd_list_context,
-)
-from common.document_metrics import (
-    compare_documents,
-    document_metrics,
-    experiment_markdown_report,
-    experiment_summary,
-    load_experiment_records,
 )
 
 
@@ -209,53 +201,6 @@ def cmd_current(args: argparse.Namespace) -> int:
         return 0
 
     return 1
-
-
-def _print_document_result(payload: dict, as_json: bool) -> None:
-    """Print a stable JSON payload or readable pretty JSON for document commands."""
-    print(json.dumps(payload, ensure_ascii=False, indent=None if as_json else 2))
-
-
-def cmd_document_metrics(args: argparse.Namespace) -> int:
-    """Measure one Markdown document without modifying it."""
-    try:
-        text = Path(args.markdown).read_text(encoding="utf-8")
-    except OSError as exc:
-        print(t("task.document_read_error", error=exc), file=sys.stderr)
-        return 1
-    _print_document_result(document_metrics(text), args.json)
-    return 0
-
-
-def cmd_compare_documents(args: argparse.Namespace) -> int:
-    """Compare native and reviewable Markdown documents without modifying them."""
-    try:
-        native_text = Path(args.native).read_text(encoding="utf-8")
-        reviewable_text = Path(args.reviewable).read_text(encoding="utf-8")
-    except OSError as exc:
-        print(t("task.document_read_error", error=exc), file=sys.stderr)
-        return 1
-    _print_document_result(compare_documents(native_text, reviewable_text), args.json)
-    return 0
-
-
-def cmd_experiment_report(args: argparse.Namespace) -> int:
-    """Validate experiment JSONL and print or explicitly write an aggregate report."""
-    try:
-        summary = experiment_summary(load_experiment_records(Path(args.results)))
-    except (OSError, ValueError) as exc:
-        print(t("task.experiment_read_error", error=exc), file=sys.stderr)
-        return 1
-    output = json.dumps(summary, ensure_ascii=False, indent=2) if args.format == "json" else experiment_markdown_report(summary)
-    if args.output:
-        try:
-            Path(args.output).write_text(output + ("" if output.endswith("\n") else "\n"), encoding="utf-8")
-        except OSError as exc:
-            print(t("task.experiment_write_error", error=exc), file=sys.stderr)
-            return 1
-    else:
-        print(output)
-    return 0
 
 
 # =============================================================================
@@ -488,21 +433,6 @@ def main() -> int:
     p_create.add_argument("--base-branch", help=t("task.arg_create_base_branch"))
     p_create.add_argument("--meta", action="append", help=t("task.arg_meta"))
     p_create.add_argument("--no-start", action="store_true", help=t("task.arg_no_start"))
-    p_create.add_argument("--document-profile", choices=("native", "reviewable"), default="native", help=t("task.arg_document_profile"))
-
-    p_metrics = subparsers.add_parser("document-metrics", help=t("task.arg_document_metrics"))
-    p_metrics.add_argument("markdown", help=t("task.arg_markdown"))
-    p_metrics.add_argument("--json", action="store_true", help=t("task.arg_json"))
-
-    p_compare = subparsers.add_parser("compare-documents", help=t("task.arg_compare_documents"))
-    p_compare.add_argument("native", help=t("task.arg_native_markdown"))
-    p_compare.add_argument("reviewable", help=t("task.arg_reviewable_markdown"))
-    p_compare.add_argument("--json", action="store_true", help=t("task.arg_json"))
-
-    p_report = subparsers.add_parser("experiment-report", help=t("task.arg_experiment_report"))
-    p_report.add_argument("results", help=t("task.arg_results_jsonl"))
-    p_report.add_argument("--format", choices=("json", "markdown"), default="markdown", help=t("task.arg_report_format"))
-    p_report.add_argument("--output", help=t("task.arg_output"))
 
     # add-context
     p_add = subparsers.add_parser("add-context", help=t("task.arg_add_context"))
@@ -586,9 +516,6 @@ def main() -> int:
 
     commands = {
         "create": cmd_create,
-        "document-metrics": cmd_document_metrics,
-        "compare-documents": cmd_compare_documents,
-        "experiment-report": cmd_experiment_report,
         "add-context": cmd_add_context,
         "validate": cmd_validate,
         "list-context": cmd_list_context,

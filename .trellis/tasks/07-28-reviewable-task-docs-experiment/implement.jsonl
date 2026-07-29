@@ -1,3 +1,0 @@
-{"file": ".trellis/tasks/07-28-reviewable-task-docs-experiment/research/evidence.md", "reason": "Planning evidence, current generation path, benchmark precedent, and GitNexus baseline."}
-{"file": ".trellis/spec/cli/backend/script-conventions.md", "reason": "Python template script conventions for new metrics module and task.py commands."}
-{"file": ".trellis/spec/cli/unit-test/conventions.md", "reason": "Required unit-test structure and behavior-change coverage."}
