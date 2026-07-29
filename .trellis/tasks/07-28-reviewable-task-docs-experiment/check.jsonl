@@ -1,0 +1,3 @@
+{"file": ".trellis/tasks/07-28-reviewable-task-docs-experiment/prd.md", "reason": "Verify every document profile, metric, experiment, compatibility, and isolation acceptance criterion."}
+{"file": ".trellis/tasks/07-28-reviewable-task-docs-experiment/research/evidence.md", "reason": "Check implementation against repository evidence and benchmark boundaries."}
+{"file": ".trellis/spec/cli/backend/quality-guidelines.md", "reason": "Apply project backend quality and dependency constraints."}

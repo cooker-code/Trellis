@@ -1,0 +1,6 @@
+{
+  "task_id": "historical-doc-profile-fixture-v1",
+  "base_sha": "fb6ac58666d8a317be15472403af20130dfff639",
+  "requirements": ["R1 preserve native default", "R2 reviewable approval surface"],
+  "acceptance": ["AC1 native unchanged", "AC2 marked reviewable PRD"]
+}

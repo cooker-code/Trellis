@@ -1,0 +1,29 @@
+{
+  "id": "reviewable-task-docs-experiment",
+  "name": "reviewable-task-docs-experiment",
+  "title": "可读任务文档与对照指标实验",
+  "description": "为 Trellis 增加可选择的可审阅任务文档模式、确定性文档指标和原生/优化对照实验链路。",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": null,
+  "package": "cli",
+  "priority": "P2",
+  "creator": "wangliang",
+  "assignee": "wangliang",
+  "createdAt": "2026-07-28",
+  "completedAt": null,
+  "branch": "codex/reviewable-task-docs-experiment",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "worktree_path": "/Users/blank/wangliang/gitcode/Trellis-reviewable-docs",
+    "experiment_scope": "document-readability-v1"
+  }
+}
