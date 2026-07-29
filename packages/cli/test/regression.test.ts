@@ -4879,11 +4879,7 @@ print(len(entries))
       "src",
       "templates",
     );
-    const brainstormFiles = [
-      "common/skills/brainstorm.md",
-      "codex/skills/brainstorm/SKILL.md",
-      "copilot/prompts/brainstorm.prompt.md",
-    ];
+    const brainstormFiles = ["common/skills/brainstorm.md"];
 
     for (const relativePath of brainstormFiles) {
       const content = fs.readFileSync(
@@ -4903,11 +4899,7 @@ print(len(entries))
       "src",
       "templates",
     );
-    const brainstormFiles = [
-      "common/skills/brainstorm.md",
-      "codex/skills/brainstorm/SKILL.md",
-      "copilot/prompts/brainstorm.prompt.md",
-    ];
+    const brainstormFiles = ["common/skills/brainstorm.md"];
 
     for (const relativePath of brainstormFiles) {
       const content = fs.readFileSync(
@@ -4922,7 +4914,7 @@ print(len(entries))
         "Fold temporary brainstorm sections such as `What I already know`, `Assumptions`, and resolved `Open Questions`",
       );
       expect(content, relativePath).toContain(
-        "Preserve every file:line anchor, decision, constraint, requirement ID, and acceptance-criteria mapping.",
+        "Preserve every decision, user constraint, requirement ID, and outcome mapping; move file:line anchors to `research/`.",
       );
       expect(content, relativePath).toContain(
         "no unresolved temporary brainstorm sections, no duplicate facts across sections",

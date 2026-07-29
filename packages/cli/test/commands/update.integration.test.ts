@@ -1363,6 +1363,23 @@ describe("update() integration", () => {
     // Version must advance to current CLI after the migrate run
     const versionPath = path.join(tmpDir, DIR_NAMES.WORKFLOW, ".version");
     expect(fs.readFileSync(versionPath, "utf-8")).toBe(VERSION);
+
+    const migrationTask = fs
+      .readdirSync(path.join(tmpDir, PATHS.TASKS))
+      .find((name) => name.endsWith(`migrate-to-${VERSION}`));
+    expect(migrationTask).toBeDefined();
+    if (!migrationTask) throw new Error("migration task was not created");
+    const taskDir = path.join(tmpDir, PATHS.TASKS, migrationTask);
+    const prd = fs.readFileSync(path.join(taskDir, "prd.md"), "utf-8");
+    const design = fs.readFileSync(path.join(taskDir, "design.md"), "utf-8");
+    const implement = fs.readFileSync(path.join(taskDir, "implement.md"), "utf-8");
+    expect(prd).toContain("## Goal");
+    expect(prd).toContain("## Requirements");
+    expect(prd).toContain("## User-visible Outcomes");
+    expect(prd).not.toContain("Migration Guide");
+    expect(design).toContain("0.4.x → 0.5.x: What This Release Actually Changes");
+    expect(implement).toContain("When helping a user migrate from 0.4.x to 0.5.x:");
+    expect(implement).toContain("Run `trellis update --migrate`");
   });
 
   // The [b] Backup-rename path in the confirm prompt promises "keeps a .backup

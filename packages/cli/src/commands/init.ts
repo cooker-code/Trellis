@@ -327,6 +327,7 @@ function writeTaskSkeleton(
   taskName: string,
   taskJson: TaskJson,
   prdContent: string,
+  extraArtifacts: Record<string, string> = {},
 ): boolean {
   const taskDir = path.join(cwd, PATHS.TASKS, taskName);
   if (fs.existsSync(taskDir)) return true; // idempotent
@@ -339,6 +340,9 @@ function writeTaskSkeleton(
       "utf-8",
     );
     fs.writeFileSync(path.join(taskDir, FILE_NAMES.PRD), prdContent, "utf-8");
+    for (const [name, content] of Object.entries(extraArtifacts)) {
+      fs.writeFileSync(path.join(taskDir, name), content, "utf-8");
+    }
     return true;
   } catch {
     return false;
@@ -390,7 +394,7 @@ function getBootstrapRelatedFiles(
   return [".trellis/spec/backend/", ".trellis/spec/frontend/"];
 }
 
-function getBootstrapPrdContent(
+function getBootstrapImplementContent(
   projectType: ProjectType,
   pythonCmd: string,
   packages?: DetectedPackage[],
@@ -574,6 +578,45 @@ etc.) I can pull from, or should I scan the codebase from scratch?"
   return content;
 }
 
+function getBootstrapPrdContent(
+  projectType: ProjectType,
+  language: SupportedLanguage,
+): string {
+  if (language === "zh")
+    return `# 项目开发指南初始化
+
+## 目标
+
+1. 为此项目建立团队成员和 AI 工具都能依赖的开发指南。
+
+## 需求
+
+- 收集此 ${projectType} 代码库的实际团队约定。
+- 以现有项目实践为基础，而不是记录脱离现实的规则。
+
+## 用户可见结果
+
+- [ ] 贡献者能在 \`.trellis/spec/\` 下找到完成的指南。
+- [ ] 后续任务会在实现前加载这些指南。
+`;
+  return `# Bootstrap project guidelines
+
+## Goal
+
+1. Give this project a set of development guidelines that its people and AI tools can rely on.
+
+## Requirements
+
+- Capture the team's actual conventions for the ${projectType} codebase.
+- Keep guidance based on existing project practice rather than aspirational rules.
+
+## User-visible Outcomes
+
+- [ ] Contributors can find completed guidelines under \`.trellis/spec/\`.
+- [ ] Future tasks load those guidelines before implementation.
+`;
+}
+
 function getBootstrapTaskJson(
   developer: string,
   projectType: ProjectType,
@@ -610,11 +653,19 @@ function createBootstrapTask(
   developer: string,
   pythonCmd: string,
   projectType: ProjectType,
+  language: SupportedLanguage,
   packages?: DetectedPackage[],
 ): boolean {
   const taskJson = getBootstrapTaskJson(developer, projectType, packages);
-  const prdContent = getBootstrapPrdContent(projectType, pythonCmd, packages);
-  return writeTaskSkeleton(cwd, BOOTSTRAP_TASK_NAME, taskJson, prdContent);
+  const prdContent = getBootstrapPrdContent(projectType, language);
+  const implementContent = getBootstrapImplementContent(
+    projectType,
+    pythonCmd,
+    packages,
+  );
+  return writeTaskSkeleton(cwd, BOOTSTRAP_TASK_NAME, taskJson, prdContent, {
+    "implement.md": implementContent,
+  });
 }
 
 // =============================================================================
@@ -649,7 +700,10 @@ function getJoinerTaskJson(developer: string, taskName: string): TaskJson {
  * PRD content for joiner onboarding. Kept concise (~80 lines) — deeper
  * guidance lives in skills and docs.
  */
-function getJoinerPrdContent(developer: string, pythonCmd: string): string {
+function getJoinerImplementContent(
+  developer: string,
+  pythonCmd: string,
+): string {
   const slug = slugifyDeveloperName(developer);
   return `# Joiner Onboarding Task
 
@@ -758,6 +812,45 @@ hood, summarize the team's spec, or jump to what you're already curious about
 `;
 }
 
+function getJoinerPrdContent(
+  developer: string,
+  language: SupportedLanguage,
+): string {
+  if (language === "zh")
+    return `# 新成员引导
+
+## 目标
+
+1. 帮助 ${developer} 理解此 Trellis 项目并能自信地开始已分配的工作。
+
+## 需求
+
+- 说明项目工作流、约定以及已分配工作的所在位置。
+- 让开发者选择每个主题需要了解的深度。
+
+## 用户可见结果
+
+- [ ] ${developer} 能找到项目工作流和开发指南。
+- [ ] ${developer} 能看到分配给自己的任务，并知道如何继续处理。
+`;
+  return `# Joiner onboarding
+
+## Goal
+
+1. Help ${developer} understand this Trellis project and confidently begin assigned work.
+
+## Requirements
+
+- Explain the project workflow, conventions, and where assigned work is listed.
+- Let the developer choose how deeply to explore each topic.
+
+## User-visible Outcomes
+
+- [ ] ${developer} can locate the project workflow and development guidelines.
+- [ ] ${developer} can see tasks assigned to them and knows how to resume one.
+`;
+}
+
 /**
  * Create joiner onboarding task for a new developer on an existing Trellis
  * project. Task name is slugified to be filesystem-safe for arbitrary
@@ -767,12 +860,16 @@ function createJoinerOnboardingTask(
   cwd: string,
   developer: string,
   pythonCmd: string,
+  language: SupportedLanguage,
 ): boolean {
   const slug = slugifyDeveloperName(developer);
   const taskName = `00-join-${slug}`;
   const taskJson = getJoinerTaskJson(developer, taskName);
-  const prdContent = getJoinerPrdContent(developer, pythonCmd);
-  return writeTaskSkeleton(cwd, taskName, taskJson, prdContent);
+  const prdContent = getJoinerPrdContent(developer, language);
+  const implementContent = getJoinerImplementContent(developer, pythonCmd);
+  return writeTaskSkeleton(cwd, taskName, taskJson, prdContent, {
+    "implement.md": implementContent,
+  });
 }
 
 /**
@@ -965,7 +1062,7 @@ async function handleReinit(
     // Runs outside the init_developer try/catch so failures surface as warnings.
     if (!hadDeveloperFileBefore) {
       try {
-        if (!createJoinerOnboardingTask(cwd, devName, pythonCmd)) {
+        if (!createJoinerOnboardingTask(cwd, devName, pythonCmd, language)) {
           console.warn(
             chalk.yellow("⚠ Failed to create joiner onboarding task"),
           );
@@ -2072,11 +2169,14 @@ export async function init(options: InitOptions): Promise<void> {
         developerName,
         pythonCmd,
         projectType,
+        language,
         monorepoPackages,
       );
     } else if (!hadDeveloperFileAtStart) {
       try {
-        if (!createJoinerOnboardingTask(cwd, developerName, pythonCmd)) {
+        if (
+          !createJoinerOnboardingTask(cwd, developerName, pythonCmd, language)
+        ) {
           console.warn(
             chalk.yellow("⚠ Failed to create joiner onboarding task"),
           );

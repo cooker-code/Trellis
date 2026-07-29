@@ -1194,7 +1194,7 @@ staff confirmations, Claude Code canary test) lives in the archived task:
 
 Task planning is artifact-driven:
 
-- `prd.md` is created by `task.py create` and stores requirements, constraints, and acceptance criteria.
+- `prd.md` is created by `task.py create` and stores the human-readable Goal, Requirements, and User-visible Outcomes contract; technical design, execution, and evidence belong in companion artifacts.
 - `design.md` is required for complex tasks and stores technical design, boundaries, data flow, contracts, and tradeoffs.
 - `implement.md` is required for complex tasks and stores execution order, checklist, validation commands, and rollback points.
 - `implement.jsonl` / `check.jsonl` are spec and research manifests for implement/check context. They do not replace `implement.md`.

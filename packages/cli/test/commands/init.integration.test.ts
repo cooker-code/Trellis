@@ -1399,21 +1399,37 @@ describe("init() integration", () => {
     expect(taskJson.relatedFiles).toContain(".trellis/spec/core/");
     expect(taskJson.relatedFiles).toContain(".trellis/spec/ui/");
 
-    // prd.md mentions packages + renders per-package checklist items
+    // prd.md is human-readable; the implementation plan keeps the detailed checklist.
     const prd = fs.readFileSync(path.join(taskDir, "prd.md"), "utf-8");
+    const implement = fs.readFileSync(path.join(taskDir, "implement.md"), "utf-8");
     const expectedPythonCmd =
       process.platform === "win32" ? "python" : "python3";
-    expect(prd).toContain("core");
-    expect(prd).toContain("ui");
-    expect(prd).toContain("spec/");
-    expect(prd).toContain("- [ ] Fill guidelines for core");
-    expect(prd).toContain("- [ ] Fill guidelines for ui");
-    expect(prd).toContain(
+    expect(prd).toContain("## User-visible Outcomes");
+    expect(implement).toContain("core");
+    expect(implement).toContain("ui");
+    expect(implement).toContain("spec/");
+    expect(implement).toContain("- [ ] Fill guidelines for core");
+    expect(implement).toContain("- [ ] Fill guidelines for ui");
+    expect(implement).toContain(
       `${expectedPythonCmd} ./.trellis/scripts/task.py finish`,
     );
-    expect(prd).toContain(
+    expect(implement).toContain(
       `${expectedPythonCmd} ./.trellis/scripts/task.py archive 00-bootstrap-guidelines`,
     );
+  });
+
+  it("#15a writes the bootstrap PRD with the selected Chinese contract", async () => {
+    await init({ yes: true, user: "开发者", language: "zh" });
+
+    const prd = fs.readFileSync(
+      path.join(tmpDir, PATHS.TASKS, "00-bootstrap-guidelines", "prd.md"),
+      "utf-8",
+    );
+    expect(prd).toContain("## 目标");
+    expect(prd).toContain("## 需求");
+    expect(prd).toContain("## 用户可见结果");
+    expect(prd).toMatch(/\n1\. /);
+    expect(prd).toMatch(/\n- \[ \]/);
   });
 
   it("#16 --no-monorepo skips detection even with workspace config", async () => {

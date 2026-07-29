@@ -205,42 +205,30 @@ def _default_prd_content(title: str, description: str | None = None) -> str:
 
 ## 目标
 
-{goal or "待补充。"}
+1. {goal or "待补充。"}
 
 ## 需求
 
 - 待补充
 
-## 验收标准
+## 用户可见结果
 
 - [ ] 待补充
-
-## 说明
-
-- `prd.md` 聚焦需求、约束与验收标准。
-- 轻量任务可以只保留 PRD（产品需求文档）。
-- 复杂任务应在运行 `task.py start` 前补充 `design.md`（技术设计）和 `implement.md`（实施计划）。
 """
     goal = goal or "TBD."
     return f"""# {heading}
 
 ## Goal
 
-{goal}
+1. {goal}
 
 ## Requirements
 
 - TBD
 
-## Acceptance Criteria
+## User-visible Outcomes
 
 - [ ] TBD
-
-## Notes
-
-- Keep `prd.md` focused on requirements, constraints, and acceptance criteria.
-- Lightweight tasks can remain PRD-only.
-- For complex tasks, add `design.md` for technical design and `implement.md` for execution planning before `task.py start`.
 """
 
 

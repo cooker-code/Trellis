@@ -132,18 +132,17 @@ TASK_DIR=$({{PYTHON_CMD}} ./.trellis/scripts/task.py create "<short task title>"
 
 轻量 Task 可以省略 `design.md` 和 `implement.md`；但不能跳过证据检查、需求收敛、最终审查或新的实现批准。
 
-最终规划摘要必须展示目标、范围内、范围外、验收标准、关键决策、相关风险或延期事项，以及产物状态。
+最终规划摘要必须展示目标、需求、用户可见结果、关键决策、相关风险或延期事项和产物状态。用户界面 Task 还必须展示 `prototype status: pending_user_approval` 或 `approved`；最新原型未经用户明确确认前，不得运行 `task.py start`。
 
 ## 产物规则
 
-`prd.md` 记录需求和验收：
+`prd.md` 是面向人阅读的产品合同，固定核心章节必须按以下顺序出现：
 
-- 目标和用户价值
-- 已确认事实
-- 需求
-- 验收标准
-- 范围外事项
-- 仍阻塞规划的待确认问题
+- `Goal`（目标）— 使用有序列表描述用户结果和价值
+- `Requirements`（需求）— 描述用户/产品行为和用户可理解的产品阶段
+- `User-visible Outcomes`（用户可见结果）— 使用可核验检查清单说明用户能看到什么以及如何判断成功
+
+背景、范围或流程图仅在确实提升理解时使用。已确认事实只是临时探索分类，不能成为最终 PRD 章节。技术设计进入 `design.md`；有序执行和验证命令进入 `implement.md`；源码诊断和 `file:line` 证据进入 `research/`。
 
 复杂 Task 的 `design.md` 记录技术设计：
 
@@ -171,10 +170,22 @@ TASK_DIR=$({{PYTHON_CMD}} ./.trellis/scripts/task.py create "<short task title>"
 整理过程必须无损：
 
 - 将重复事实合并为一个权威章节。
-- 将 `What I already know`、`Assumptions` 和已解决的 `Open Questions` 等临时需求探索章节，折叠到目标、背景、需求、技术说明或验收标准中。
+- 将 `What I already know`、`Assumptions` 和已解决的 `Open Questions` 等临时需求探索章节，折叠到目标、背景、需求或用户可见结果中；技术说明移入 `design.md`，证据移入 `research/`。
 - 删除已解决的待确认问题，不要保留空章节或已有答案的章节。
 - 当并列的缺陷清单和需求清单描述相同工作时，将其合并；保留每个缺陷的严重程度、证据和 file:line 锚点，并归入对应需求。
-- 保留每个 file:line 锚点、决策、约束、需求标识符和验收标准映射。
+- 保留每项决策、用户约束、需求标识符和结果映射；将 file:line 锚点移入 `research/`。
+
+## 流程图关键路径
+
+仅当图确实能提升理解时才使用流程图。关键路径必须使用 `critical` 类、红色 `linkStyle` 和明确节点文字，不能只依赖颜色表达。
+
+```mermaid
+flowchart LR
+  A["关键入口"] --> B["关键处理"] --> C["关键结果"]
+  classDef critical fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:2px;
+  class A,B,C critical;
+  linkStyle 0,1 stroke:#dc2626,stroke-width:3px;
+```
 - 仍有任何阻塞性待确认问题时，不得进入最终审查。
 
 整理完成后，从头到尾阅读 `prd.md`，确认没有跨章节重复的事实，除非重复确实增加了新信息。
@@ -205,3 +216,21 @@ TASK_DIR=$({{PYTHON_CMD}} ./.trellis/scripts/task.py create "<short task title>"
 - 用户在后续消息中明确批准该摘要进入实现。
 
 不要仅仅因为用户最初要求实现，就开始实现。
+
+<!-- prd-contract:START -->
+## PRD 合同
+
+最终 `prd.md` 的固定章节依次为 目标（`Goal`）、需求（`Requirements`）和 用户可见结果（`User-visible Outcomes`）。目标使用有序列表，用户可见结果使用检查清单。技术设计进入 `design.md`；有序执行进入 `implement.md`；源码诊断进入 `research/`。
+
+用户界面工作必须在用户可见结果中包含原型，并在用户明确确认前报告 `prototype status: pending_user_approval`；待确认时不得运行 `task.py start`。
+
+仅当流程图确实提升理解时才使用。 关键路径必须有明确标签、`classDef critical`、`class ... critical` 和红色 `linkStyle`（`stroke:#dc2626`）；不能只依赖颜色。
+
+```mermaid
+flowchart LR
+  A["关键入口"] --> B["关键处理"] --> C["关键结果"]
+  classDef critical fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:2px;
+  class A,B,C critical;
+  linkStyle 0,1 stroke:#dc2626,stroke-width:3px;
+```
+<!-- prd-contract:END -->

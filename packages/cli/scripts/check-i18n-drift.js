@@ -666,7 +666,11 @@ export function checkChineseWorkflowCompleteness(content, englishContent = "") {
     const copiedLines = content
       .split(/\r?\n/)
       .map((line) => line.trim())
-      .filter((line) => humanFacingEnglishLines.has(line));
+      .filter(
+        (line) =>
+          humanFacingEnglishLines.has(line) &&
+          !/^<!-- prd-contract:(?:START|END) -->$/.test(line),
+      );
     if (copiedLines.length > 0) {
       diagnostics.push({
         category: "translation completeness",

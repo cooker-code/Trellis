@@ -2853,34 +2853,30 @@ export async function update(options: UpdateOptions): Promise<void> {
         const taskJsonPath = path.join(taskDir, "task.json");
         fs.writeFileSync(taskJsonPath, JSON.stringify(taskJson, null, 2));
 
-        // Build PRD content
-        let prdContent = `# Migration Task: Upgrade to v${cliVersion}\n\n`;
-        prdContent += `**Created**: ${todayStr}\n`;
-        prdContent += `**From Version**: ${projectVersion}\n`;
-        prdContent += `**To Version**: ${cliVersion}\n`;
-        prdContent += `**Assignee**: ${currentDeveloper}\n\n`;
-        prdContent += `## Status\n\n- [ ] Review migration guide\n- [ ] Update custom files\n- [ ] Run \`trellis update --migrate\`\n- [ ] Test workflows\n\n`;
+        // Migration tasks retain all guide material, but keep the PRD for the
+        // human migration contract. Technical compatibility and agent steps
+        // belong in the companion artifacts.
+        const prdContent = `# Migrate to v${cliVersion}\n\n## Goal\n\n1. Upgrade from v${projectVersion} to v${cliVersion} with a clear, supported migration path.\n\n## Requirements\n\n- Review the migration guidance relevant to this project.\n- Complete the required update stages without losing local customizations.\n\n## User-visible Outcomes\n\n- [ ] The project uses v${cliVersion}.\n- [ ] Required migration changes are complete and verified.\n`;
+        let designContent = `# Migration design: v${projectVersion} to v${cliVersion}\n\n`;
+        let implementContent = `# Migration implementation: v${projectVersion} to v${cliVersion}\n\n## Checklist\n\n- [ ] Review migration guidance\n- [ ] Update custom files\n- [ ] Run \`trellis update --migrate\`\n- [ ] Test workflows\n`;
 
         for (const {
           version,
           guide,
           aiInstructions,
         } of metadata.migrationGuides) {
-          prdContent += `---\n\n## v${version} Migration Guide\n\n`;
-          prdContent += guide;
-          prdContent += "\n\n";
+          designContent += `## v${version} Migration Guide\n\n${guide}\n\n`;
 
           if (aiInstructions) {
-            prdContent += `### AI Assistant Instructions\n\n`;
-            prdContent += `When helping with this migration:\n\n`;
-            prdContent += aiInstructions;
-            prdContent += "\n\n";
+            implementContent += `\n## v${version} AI Assistant Instructions\n\nWhen helping with this migration:\n\n${aiInstructions}\n`;
           }
         }
 
         // Write PRD
         const prdPath = path.join(taskDir, "prd.md");
         fs.writeFileSync(prdPath, prdContent);
+        fs.writeFileSync(path.join(taskDir, "design.md"), designContent);
+        fs.writeFileSync(path.join(taskDir, "implement.md"), implementContent);
 
         console.log("");
         console.log(chalk.bgCyan.black.bold(" 📋 MIGRATION TASK CREATED "));

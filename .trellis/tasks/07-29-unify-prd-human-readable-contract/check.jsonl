@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/cli/backend/index.md", "reason": "Review template propagation, dogfood sync and update safety"}
+{"file": ".trellis/spec/cli/unit-test/index.md", "reason": "Review exact, non-tautological unit and integration coverage"}
+{"file": ".trellis/spec/docs-site/docs/index.md", "reason": "Review MDX structure and bilingual parity"}
+{"file": ".trellis/spec/docs-site/docs/sync-on-change.md", "reason": "Review all required downstream docs and marketplace mirrors"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Review single source of truth and stale duplicate removal"}
+{"file": ".trellis/spec/guides/cross-platform-thinking-guide.md", "reason": "Review locale, platform and Python compatibility"}
+{"file": ".trellis/tasks/07-29-unify-prd-human-readable-contract/research/evidence.md", "reason": "Review implementation against the audited current impact surface"}

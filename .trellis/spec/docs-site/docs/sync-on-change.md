@@ -10,6 +10,15 @@ Docs-site is a submodule that lags behind template code. Missing a doc-update on
 
 Rule of thumb: **if the change touches `packages/cli/src/templates/` or `packages/cli/src/migrations/`, grep the matrix below before merging.**
 
+## Trigger: PRD contract changes
+
+Scope: changes to `packages/cli/src/templates/common/prd-contract.json`, the PRD renderer, workflow, or `trellis-brainstorm`.
+
+- Sync the managed PRD contract blocks in bundled workflow, dogfood workflow, all Marketplace workflows, and the common Brainstorm skill with `pnpm sync:prd-contract`, then run `pnpm check:prd-contract`.
+- Update the English and Chinese pages `guides/tasks.mdx`, `start/how-it-works.mdx`, `start/everyday-use.mdx`, `advanced/architecture.mdx`, and `start/real-world-scenarios.mdx`.
+- Preserve the artifact boundary: PRD is Goal / Requirements / User-visible Outcomes; technical design, execution, and evidence belong in `design.md`, `implement.md`, and `research/`.
+- For UI work, document that a pending prototype approval blocks `task.py start`.
+
 ## Version Scope Gate
 
 Before applying any trigger below, decide whether the changed behavior belongs

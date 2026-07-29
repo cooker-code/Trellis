@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "locales": {"en": {"goal": "Goal", "requirements": "Requirements", "userVisibleOutcomes": "User-visible Outcomes"}, "zh": {"goal": "目标", "requirements": "需求", "userVisibleOutcomes": "用户可见结果"}},
+  "fixedOrder": ["goal", "requirements", "userVisibleOutcomes"],
+  "goalListStyle": "ordered",
+  "outcomeListStyle": "checklist",
+  "optionalHumanSections": ["background", "scope", "mermaid"],
+  "uiPrototypeApprovalRequired": true,
+  "technicalDetailTargets": {"design": ["technical requirements", "algorithms", "data contracts", "compatibility", "rollout", "rollback"], "implement": ["ordered checklist", "commands", "test execution"], "research": ["source diagnosis", "file:line evidence", "investigation facts"]},
+  "mermaidCriticalPath": {"requiredClass": "critical", "requiredLinkStyle": "stroke:#dc2626", "textLabelRequired": true}
+}

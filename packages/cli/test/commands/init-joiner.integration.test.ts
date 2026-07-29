@@ -129,22 +129,23 @@ describe("init() joiner onboarding", () => {
     expect(taskJson.title).toContain("bob");
 
     const prd = fs.readFileSync(path.join(joiner, FILE_NAMES.PRD), "utf-8");
-    // PRD is AI-facing instructions ("you (the AI) are running this task").
-    // Mentions the developer in context + user-facing elements the AI should
-    // reference.
+    // PRD is the human-readable onboarding contract; agent instructions live
+    // in its companion implementation plan.
     expect(prd).toContain("bob");
-    expect(prd).toContain("You (the AI) are running this task");
-    expect(prd).toContain("workflow.md");
-    expect(prd).toContain(".trellis/spec/");
-    expect(prd).toContain("00-join-bob");
-    // Fallback text for empty archive
-    expect(prd).toContain("archive is empty");
+    expect(prd).toContain("## Goal");
+    expect(prd).toContain("## Requirements");
+    expect(prd).toContain("## User-visible Outcomes");
+    const implement = fs.readFileSync(path.join(joiner, "implement.md"), "utf-8");
+    expect(implement).toContain("workflow.md");
+    expect(implement).toContain(".trellis/spec/");
+    expect(implement).toContain("00-join-bob");
+    expect(implement).toContain("archive is empty");
     const expectedPythonCmd = process.platform === "win32" ? "python" : "python3";
-    expect(prd).toContain(
+    expect(implement).toContain(
       `${expectedPythonCmd} ./.trellis/scripts/task.py list --assignee bob`,
     );
-    expect(prd).toContain(`${expectedPythonCmd} ./.trellis/scripts/task.py finish`);
-    expect(prd).toContain(
+    expect(implement).toContain(`${expectedPythonCmd} ./.trellis/scripts/task.py finish`);
+    expect(implement).toContain(
       `${expectedPythonCmd} ./.trellis/scripts/task.py archive 00-join-bob`,
     );
 
@@ -157,6 +158,22 @@ describe("init() joiner onboarding", () => {
     expect(
       fs.existsSync(path.join(tmpDir, PATHS.TASKS, "00-bootstrap-guidelines")),
     ).toBe(false);
+  });
+
+  it("#2b writes the joiner PRD with the selected Chinese contract", async () => {
+    simulateExistingCheckout();
+
+    await init({ yes: true, user: "小王", force: true, language: "zh" });
+
+    const prd = fs.readFileSync(
+      path.join(tmpDir, PATHS.TASKS, "00-join-小王", FILE_NAMES.PRD),
+      "utf-8",
+    );
+    expect(prd).toContain("## 目标");
+    expect(prd).toContain("## 需求");
+    expect(prd).toContain("## 用户可见结果");
+    expect(prd).toMatch(/\n1\. /);
+    expect(prd).toMatch(/\n- \[ \]/);
   });
 
   it("#2b issue #204: existing .trellis/ but tasks/ empty → bootstrap fallback (--yes alone, no --force)", async () => {
