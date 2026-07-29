@@ -72,7 +72,9 @@ export const getContextScript = readTemplate("scripts/get_context.py");
 export const addSessionScript = readTemplate("scripts/add_session.py");
 
 // Configuration files
-export const configYamlTemplate = readTemplate("config.yaml");
+const configYamlTemplateEn = readTemplate("config.yaml");
+/** @deprecated Prefer getConfigYamlTemplate(locale). This alias is English. */
+export const configYamlTemplate = configYamlTemplateEn;
 export const gitignoreTemplate = readTemplate("gitignore.txt");
 export const gitattributesTemplate = readTemplate("gitattributes.txt");
 
@@ -80,8 +82,11 @@ export const gitattributesTemplate = readTemplate("gitattributes.txt");
 // `packages/cli/src/commands/channel/agent-loader.ts` from `.trellis/agents/`).
 // These are platform-agnostic Trellis runtime files dispatched at `trellis init`
 // and refreshed by `trellis update`.
-export const implementAgentTemplate = readTemplate("agents/implement.md");
-export const checkAgentTemplate = readTemplate("agents/check.md");
+const implementAgentTemplateEn = readTemplate("agents/implement.md");
+const checkAgentTemplateEn = readTemplate("agents/check.md");
+/** @deprecated Prefer getAllAgents(locale). These aliases are English. */
+export const implementAgentTemplate = implementAgentTemplateEn;
+export const checkAgentTemplate = checkAgentTemplateEn;
 
 // English source for workflow.md (always loaded as the fallback).
 const workflowMdTemplateEn = readTemplate("workflow.md");
@@ -90,6 +95,11 @@ const workflowMdTemplateEn = readTemplate("workflow.md");
 const workflowMdTemplateCache: Record<string, string | undefined> = {
   en: workflowMdTemplateEn,
 };
+const localizedTemplateCache: Record<string, string | undefined> = {
+  "config.yaml:en": configYamlTemplateEn,
+  "agents/implement.md:en": implementAgentTemplateEn,
+  "agents/check.md:en": checkAgentTemplateEn,
+};
 
 function tryReadTemplate(relativePath: string): string | undefined {
   try {
@@ -97,6 +107,34 @@ function tryReadTemplate(relativePath: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+function getLocalizedTemplate(
+  relativePath: string,
+  locale: string,
+  englishTemplate: string,
+): string {
+  const code = locale.toLowerCase();
+  if (code === "en") return englishTemplate;
+
+  const cacheKey = `${relativePath}:${code}`;
+  if (cacheKey in localizedTemplateCache) {
+    return localizedTemplateCache[cacheKey] ?? englishTemplate;
+  }
+
+  const extensionIndex = relativePath.lastIndexOf(".");
+  const localizedPath =
+    extensionIndex === -1
+      ? `${relativePath}.${code}`
+      : `${relativePath.slice(0, extensionIndex)}.${code}${relativePath.slice(extensionIndex)}`;
+  const localized = tryReadTemplate(localizedPath);
+  localizedTemplateCache[cacheKey] = localized;
+  return localized ?? englishTemplate;
+}
+
+/** Get config.yaml content for a locale, falling back to English when absent. */
+export function getConfigYamlTemplate(locale: string = "en"): string {
+  return getLocalizedTemplate("config.yaml", locale, configYamlTemplateEn);
 }
 
 /**
@@ -193,9 +231,19 @@ export function getAllScripts(): Map<string, string> {
  * `trellis update` (to backfill missing files and surface conflicts on edited
  * ones via the standard hash machinery).
  */
-export function getAllAgents(): Map<string, string> {
+export function getAllAgents(language: string = "en"): Map<string, string> {
   const agents = new Map<string, string>();
-  agents.set("implement.md", implementAgentTemplate);
-  agents.set("check.md", checkAgentTemplate);
+  agents.set(
+    "implement.md",
+    getLocalizedTemplate(
+      "agents/implement.md",
+      language,
+      implementAgentTemplateEn,
+    ),
+  );
+  agents.set(
+    "check.md",
+    getLocalizedTemplate("agents/check.md", language, checkAgentTemplateEn),
+  );
   return agents;
 }

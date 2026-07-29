@@ -25,6 +25,7 @@ import {
   gitignoreTemplate,
   getAllScripts,
   getAllAgents,
+  getConfigYamlTemplate,
   implementAgentTemplate,
   checkAgentTemplate,
   configYamlTemplate,
@@ -396,6 +397,14 @@ describe("getAllAgents", () => {
     expect(agents.get("check.md")).toBe(checkAgentTemplate);
   });
 
+  it("selects Chinese content and keeps locale-neutral output names", () => {
+    const agents = getAllAgents("zh");
+    expect([...agents.keys()]).toEqual(["implement.md", "check.md"]);
+    expect(agents.get("implement.md")).toContain("代码实现专家");
+    expect(agents.get("check.md")).toContain("代码质量审查员");
+    expect(getAllAgents("ja")).toEqual(getAllAgents("en"));
+  });
+
   it("each agent body starts with `---` frontmatter and a matching name field", () => {
     const agents = getAllAgents();
     for (const [file, content] of agents) {
@@ -437,5 +446,12 @@ describe("configYamlTemplate: context_injection section", () => {
     for (const line of lines.slice(start, start + 4)) {
       expect(line.trimStart().startsWith("#")).toBe(true);
     }
+  });
+
+  it("selects the Chinese configuration template with a persistent language", () => {
+    const chineseConfig = getConfigYamlTemplate("zh");
+    expect(chineseConfig).toContain("# Trellis 配置");
+    expect(chineseConfig).toContain("language: zh");
+    expect(getConfigYamlTemplate("ja")).toBe(configYamlTemplate);
   });
 });

@@ -7,7 +7,7 @@ import { copyTrellisDir } from "../templates/extract.js";
 // Import trellis templates (generic, not project-specific)
 import {
   getWorkflowTemplate,
-  configYamlTemplate,
+  getConfigYamlTemplate,
   gitignoreTemplate,
   gitattributesTemplate,
   getAllAgents,
@@ -145,7 +145,7 @@ export async function createWorkflowStructure(
   // Copy config.yaml from templates
   await writeFile(
     path.join(cwd, DIR_NAMES.WORKFLOW, "config.yaml"),
-    configYamlTemplate,
+    getConfigYamlTemplate(language),
   );
 
   // Ensure project-root .gitattributes carries the journal merge=union rule
@@ -159,7 +159,7 @@ export async function createWorkflowStructure(
   // can switch to a channel-driven workflow at any time via `trellis workflow
   // --template`.
   ensureDir(path.join(cwd, PATHS.AGENTS));
-  for (const [agentFile, content] of getAllAgents()) {
+  for (const [agentFile, content] of getAllAgents(language)) {
     await writeFile(path.join(cwd, PATHS.AGENTS, agentFile), content);
   }
 

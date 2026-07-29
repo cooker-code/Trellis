@@ -21,7 +21,8 @@
   "children": [
     "07-27-i18n-workflow-pr1b",
     "07-27-i18n-common-skills-pr2",
-    "07-27-i18n-bundled-python-pr3"
+    "07-27-i18n-bundled-python-pr3",
+    "07-28-i18n-channel-agents-config"
   ],
   "parent": null,
   "relatedFiles": [],

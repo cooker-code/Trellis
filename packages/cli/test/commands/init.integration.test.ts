@@ -51,7 +51,11 @@ import { VERSION } from "../../src/constants/version.js";
 import { DIR_NAMES, FILE_NAMES, PATHS } from "../../src/constants/paths.js";
 import { collectPlatformTemplates } from "../../src/configurators/index.js";
 import { replacePythonCommandLiterals } from "../../src/configurators/shared.js";
-import { getWorkflowTemplate } from "../../src/templates/trellis/index.js";
+import {
+  getAllAgents as getChannelAgents,
+  getConfigYamlTemplate,
+  getWorkflowTemplate,
+} from "../../src/templates/trellis/index.js";
 import { computeHash } from "../../src/utils/template-hash.js";
 import {
   COPILOT_INSTRUCTIONS_PATH,
@@ -213,6 +217,23 @@ describe("init() integration", () => {
       expect(
         fs.existsSync(path.join(tmpDir2, ".trellis", "workflow.zh.md")),
       ).toBe(false);
+      const chineseConfig = getConfigYamlTemplate("zh");
+      expect(
+        fs.readFileSync(
+          path.join(tmpDir2, ".trellis", "config.yaml"),
+          "utf-8",
+        ),
+      ).toBe(chineseConfig);
+      expect(chineseConfig).toContain("language: zh");
+
+      const chineseChannelAgents = getChannelAgents("zh");
+      for (const [file, content] of chineseChannelAgents) {
+        const relativePath = path.join(".trellis", "agents", file);
+        const landed = fs.readFileSync(path.join(tmpDir2, relativePath), "utf-8");
+        expect(landed, relativePath).toBe(content);
+        expect(landed, relativePath).toMatch(/[\u3400-\u9fff]/);
+        expect(relativePath).not.toContain(".zh.");
+      }
 
       const backendSpecPath = path.join(
         tmpDir2,
@@ -276,6 +297,13 @@ describe("init() integration", () => {
       const hashes = hashFile.hashes ?? {};
       expect(hashes[PATHS.WORKFLOW_GUIDE_FILE]).toBe(computeHash(zhContent));
       expect(hashes[".trellis/workflow.zh.md"]).toBeUndefined();
+      expect(hashes[".trellis/config.yaml"]).toBe(computeHash(chineseConfig));
+      expect(hashes[".trellis/config.zh.yaml"]).toBeUndefined();
+      for (const [file, content] of chineseChannelAgents) {
+        const relativePath = `.trellis/agents/${file}`;
+        expect(hashes[relativePath], relativePath).toBe(computeHash(content));
+        expect(hashes[relativePath.replace(/(\.[^.]+)$/, ".zh$1")]).toBeUndefined();
+      }
       for (const file of localizedFiles) {
         const expected = chineseClaude.get(file);
         if (expected === undefined)

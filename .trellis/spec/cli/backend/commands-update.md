@@ -47,8 +47,11 @@ interface UpdateOptions {
   createNew?: boolean;
   allowDowngrade?: boolean;
   migrate?: boolean;
+  language?: string;
 }
 ```
+
+`language` is the one-shot source-template locale selected by `trellis update --language <code>`; it overrides the project configuration for that run.  A successful explicit update writes the localized `config.yaml`, whose `language` value becomes the locale used by later updates without the flag.
 
 Note that `force` / `skipAll` / `createNew` are mutually exclusive in spirit but the code does not assert mutual exclusivity. They are checked in priority order in `commands/update.ts:promptConflictResolution`. `force` also doubles as "non-interactive" — it skips the global `Proceed?` confirm in `commands/update.ts:update`.
 
@@ -63,12 +66,28 @@ Note that `force` / `skipAll` / `createNew` are mutually exclusive in spirit but
 | Source | Where the bytes come from |
 |---|---|
 | Python scripts under `.trellis/scripts/` | `templates/trellis/index.ts:getAllScripts` |
-| `.trellis/config.yaml` | `templates/trellis/index.ts:configYamlTemplate` |
+| `.trellis/config.yaml` | `templates/trellis/index.ts:getConfigYamlTemplate(language)` |
 | `.trellis/.gitignore` | `templates/trellis/index.ts:gitignoreTemplate` |
 | `.trellis/workflow.md` | `templates/trellis/index.ts:workflowMdTemplate` (whole-file hash-gated, see below) |
 | Root `AGENTS.md` | `commands/update.ts:buildAgentsMdTemplate` (managed-block merge) |
 | Per-platform files | `configurators/index.ts:collectPlatformTemplates` for each detected platform via `configurators/index.ts:getConfiguredPlatforms` |
 | `.claude/settings.json` `statusLine` | preserved through `commands/update.ts:preserveExistingClaudeStatusLine` |
+
+### Localized core templates
+
+The core `.trellis/` templates use `templates/trellis/index.ts:getLocalizedTemplate`.  For a requested locale it reads a sibling file with the locale before the final extension, such as `config.zh.yaml`, `workflow.zh.md`, `agents/check.zh.md`, and `agents/implement.zh.md`.  If a localized source file is absent, it returns the English template; unsupported locales therefore never cause an update failure.
+
+`getAllAgents(language)` always returns the locale-neutral target names `check.md` and `implement.md`.  The locale suffix belongs only to source templates: projects must never receive `check.zh.md` or gain locale-specific manifest keys.  `collectTemplateFiles` must pass the resolved language both to `getAllAgents(language)` and `getConfigYamlTemplate(language)` so init and update hash the exact same target bytes.
+
+#### Localized update contract
+
+1. **Scope / Trigger** — A project selects a locale from `.trellis/config.yaml`, `TRELLIS_LANGUAGE`, or `trellis update --language`; source assets need a translated core prompt/configuration while paths remain stable.
+2. **Signatures** — `getConfigYamlTemplate(language?: string): string`; `getAllAgents(language?: string): Map<string, string>`; `UpdateOptions.language?: string`.
+3. **Contracts** — English is the fallback.  A valid explicit `--language zh` emits Chinese config and agent content; the generated config records `language: zh`, making a later flag-less update stay Chinese.
+4. **Validation & Error Matrix** — Missing `*.zh.*` source -> English fallback; invalid explicit language -> CLI warning then default locale; a user-modified target file -> normal conflict policy (`--force`, skip, or `.new`), never a locale-specific path.
+5. **Good / Base / Bad Cases** — Good: `zh` writes Chinese content to `.trellis/agents/check.md`; Base: `en` returns existing English bytes; Bad: writing `.trellis/agents/check.zh.md` or hashing it as a separate target.
+6. **Tests Required** — Unit-test localized lookup plus fallback; integration-test init and forced update for config and both agents; assert manifest keys use target paths only and that a subsequent no-flag update preserves `zh`.
+7. **Wrong vs Correct** — Wrong: choose Chinese only for `workflow.md` while agents/config always use English.  Correct: thread one resolved language through workflow, config, agents, and their hash collection.
 
 Platforms are auto-discovered by directory existence in `cwd`. There is one exception: if `commands/update.ts:needsCodexUpgrade` returns true (legacy Trellis tracked `.agents/skills/` but no `.codex/` exists yet), `commands/update.ts:update` passes `extraPlatforms: new Set(["codex"])` to force Codex template collection so the upgrade can create `.codex/`.
 

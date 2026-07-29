@@ -40,7 +40,7 @@ import {
   getAllScripts,
   getAllAgents,
   // Configuration
-  configYamlTemplate,
+  getConfigYamlTemplate,
   gitignoreTemplate,
   getWorkflowTemplate,
 } from "../templates/trellis/index.js";
@@ -887,14 +887,14 @@ async function collectTemplateFiles(
   // Backfilled by `trellis update` if missing so users who installed before the
   // bundled agents existed pick them up. Edited files take the standard
   // modified-file prompt path.
-  for (const [agentFile, content] of getAllAgents()) {
+  for (const [agentFile, content] of getAllAgents(language)) {
     files.set(`${PATHS.AGENTS}/${agentFile}`, content);
   }
 
   // Configuration
   files.set(
     `${DIR_NAMES.WORKFLOW}/config.yaml`,
-    preserveExistingRegistryConfig(cwd, configYamlTemplate),
+    preserveExistingRegistryConfig(cwd, getConfigYamlTemplate(language)),
   );
   files.set(`${DIR_NAMES.WORKFLOW}/.gitignore`, gitignoreTemplate);
   // workflow.md is included here because it is runtime-parsed by

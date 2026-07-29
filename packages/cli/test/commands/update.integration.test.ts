@@ -60,6 +60,8 @@ import { VERSION } from "../../src/constants/version.js";
 import { DIR_NAMES, FILE_NAMES, PATHS } from "../../src/constants/paths.js";
 import { computeHash } from "../../src/utils/template-hash.js";
 import {
+  getAllAgents as getChannelAgents,
+  getConfigYamlTemplate,
   getWorkflowTemplate,
   workflowMdTemplate,
 } from "../../src/templates/trellis/index.js";
@@ -1530,6 +1532,8 @@ describe("update() integration", () => {
     await setupProject();
     const localizedFiles = [
       PATHS.WORKFLOW_GUIDE_FILE,
+      ".trellis/agents/check.md",
+      ".trellis/agents/implement.md",
       ".claude/commands/trellis/continue.md",
       ".claude/skills/trellis-before-dev/SKILL.md",
       ".claude/agents/trellis-implement.md",
@@ -1542,6 +1546,13 @@ describe("update() integration", () => {
     const expectedFile = (file: string, language: "en" | "zh"): string => {
       if (file === PATHS.WORKFLOW_GUIDE_FILE) {
         return replacePythonCommandLiterals(getWorkflowTemplate(language));
+      }
+      if (file.startsWith(".trellis/agents/")) {
+        const agent = getChannelAgents(language).get(
+          file.replace(".trellis/agents/", ""),
+        );
+        if (agent === undefined) throw new Error(`Missing template: ${file}`);
+        return agent;
       }
       const content = (language === "zh" ? chineseClaude : englishClaude).get(
         file,
@@ -1612,6 +1623,43 @@ describe("update() integration", () => {
       );
     }
     expect(fs.readFileSync(configPath, "utf-8")).toBe(configuredEn);
+  });
+
+  it("#workflow-i18n force-updates channel agents and persists Chinese config", async () => {
+    await setupProject();
+    const previousLanguage = process.env.TRELLIS_LANGUAGE;
+
+    try {
+      await update({ force: true, language: "zh" });
+
+      const chineseConfig = getConfigYamlTemplate("zh");
+      expect(readProjectFile(`${DIR_NAMES.WORKFLOW}/config.yaml`)).toBe(
+        chineseConfig,
+      );
+      expect(chineseConfig).toContain("language: zh");
+      for (const [file, content] of getChannelAgents("zh")) {
+        const relativePath = `${PATHS.AGENTS}/${file}`;
+        expect(readProjectFile(relativePath), relativePath).toBe(content);
+        expect(readHashesV2(hashFilePath())[relativePath], relativePath).toBe(
+          computeHash(content),
+        );
+        expect(relativePath).not.toContain(".zh.");
+      }
+
+      await update({ force: true });
+      expect(readProjectFile(`${DIR_NAMES.WORKFLOW}/config.yaml`)).toBe(
+        chineseConfig,
+      );
+      for (const [file, content] of getChannelAgents("zh")) {
+        expect(readProjectFile(`${PATHS.AGENTS}/${file}`)).toBe(content);
+      }
+    } finally {
+      if (previousLanguage === undefined) {
+        delete process.env.TRELLIS_LANGUAGE;
+      } else {
+        process.env.TRELLIS_LANGUAGE = previousLanguage;
+      }
+    }
   });
 
   it("#workflow-i18n invalid explicit language warns and lands English instead of config Chinese", async () => {
