@@ -62,6 +62,14 @@ Run the project's lint, type-check, and test commands. Fix any failures before p
 
 > "If I fixed a bug or discovered something non-obvious, should I document it so future me won't hit the same issue?" → If YES, update the relevant spec doc.
 
+### Document Complexity and Correctness
+
+- [ ] Does each planning document keep decision content, agent-only detail, and audit evidence in their appropriate layers?
+- [ ] Was every removable item checked against: user decision need, clearer table/diagram/invariant, `implement.md` for agent detail, `research/` for audit evidence, and impact on decision/execution/acceptance?
+- [ ] Were explicit user requests, safety boundaries, compatibility requirements, acceptance criteria, and necessary evidence preserved?
+- [ ] For `reviewable` PRDs, is the approval surface marked and are resolved questions absent?
+- [ ] Are requirement coverage, acceptance checks, and implementation checks still complete? A smaller document alone is not success.
+
 ## Step 5: Cross-Layer Dimensions (if applicable)
 
 Skip this step if your change is confined to a single layer.

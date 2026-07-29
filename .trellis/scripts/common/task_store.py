@@ -244,6 +244,80 @@ def _default_prd_content(title: str, description: str | None = None) -> str:
 """
 
 
+def _reviewable_prd_content(title: str, description: str | None = None) -> str:
+    """Return a reviewable PRD skeleton with a measurable approval surface."""
+    language = get_locale()
+    goal = (description or "").strip()
+    heading = title.strip() or ("未命名任务" if language == "zh" else "Untitled task")
+    if language == "zh":
+        return f"""# {heading}
+
+<!-- trellis:approval-surface:start -->
+## 一句话结果
+
+{goal or "待补充。"}
+
+## 范围内
+
+- 待补充
+
+## 范围外
+
+- 待补充
+
+## 已确认决策
+
+- 待补充
+
+## 不可破坏规则
+
+- 待补充
+
+## 成功标准
+
+- [ ] 待补充
+<!-- trellis:approval-surface:end -->
+
+## 详细需求与验收映射
+
+- 在这里记录可追溯的需求、约束与验收标准；不要保留已解决的问题。
+- 仅供 Agent 执行的实现细节应放在 `implement.md`（实施计划）或 `research/`（调研证据）。
+"""
+    return f"""# {heading}
+
+<!-- trellis:approval-surface:start -->
+## One-line outcome
+
+{goal or "TBD."}
+
+## In scope
+
+- TBD
+
+## Out of scope
+
+- TBD
+
+## Confirmed decisions
+
+- TBD
+
+## Non-negotiable rules
+
+- TBD
+
+## Success criteria
+
+- [ ] TBD
+<!-- trellis:approval-surface:end -->
+
+## Detailed requirements and acceptance mapping
+
+- Record traceable requirements, constraints, and acceptance criteria here; do not retain resolved questions.
+- Put agent-only implementation detail in `implement.md` (execution plan) or `research/` (evidence).
+"""
+
+
 # =============================================================================
 # Command: create
 # =============================================================================
@@ -383,6 +457,7 @@ def cmd_create(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
 
+    document_profile = getattr(args, "document_profile", "native")
     task_data = {
         "id": slug,
         "name": slug,
@@ -407,6 +482,7 @@ def cmd_create(args: argparse.Namespace) -> int:
         "parent": None,
         "relatedFiles": [],
         "notes": "",
+        "document_profile": document_profile,
         "meta": meta,
     }
 
@@ -415,7 +491,9 @@ def cmd_create(args: argparse.Namespace) -> int:
     prd_path = task_dir / "prd.md"
     if not prd_path.exists():
         prd_path.write_text(
-            _default_prd_content(args.title, description),
+            _default_prd_content(args.title, description)
+            if document_profile == "native"
+            else _reviewable_prd_content(args.title, description),
             encoding="utf-8",
         )
 

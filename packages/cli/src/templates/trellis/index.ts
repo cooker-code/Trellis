@@ -50,6 +50,7 @@ export const commonTypes = readTemplate("scripts/common/types.py");
 export const commonTasks = readTemplate("scripts/common/tasks.py");
 export const commonTaskContext = readTemplate("scripts/common/task_context.py");
 export const commonTaskStore = readTemplate("scripts/common/task_store.py");
+export const commonDocumentMetrics = readTemplate("scripts/common/document_metrics.py");
 export const commonSessionContext = readTemplate(
   "scripts/common/session_context.py",
 );
@@ -203,6 +204,7 @@ export function getAllScripts(): Map<string, string> {
   scripts.set("common/tasks.py", commonTasks);
   scripts.set("common/task_context.py", commonTaskContext);
   scripts.set("common/task_store.py", commonTaskStore);
+  scripts.set("common/document_metrics.py", commonDocumentMetrics);
   scripts.set("common/session_context.py", commonSessionContext);
   scripts.set("common/packages_context.py", commonPackagesContext);
   scripts.set("common/workflow_phase.py", commonWorkflowPhase);

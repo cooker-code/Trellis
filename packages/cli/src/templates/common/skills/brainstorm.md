@@ -179,6 +179,18 @@ The pass must be lossless:
 
 After the pass, read `prd.md` top to bottom and verify that no fact is repeated across sections unless the repetition adds new information.
 
+## Document Complexity Guardrail
+
+Before final review, apply this minimum filter to every planning artifact:
+
+1. Does the user need this content to make a decision?
+2. Would a table, key diagram, or invariant communicate it more clearly?
+3. Should agent-only execution detail move down into `implement.md`?
+4. Should audit-only evidence move into `research/`?
+5. If removed, would it affect a decision, execution, or acceptance check? If not, remove it.
+
+Never use this filter to remove an explicit user request, safety boundary, compatibility requirement, acceptance criterion, or evidence necessary to verify completion. For a `reviewable` document profile, put the one-line outcome, scope, confirmed decisions, non-negotiable rules, and success criteria inside the approval-surface markers; keep resolved questions out of the final PRD.
+
 ## Quality Bar
 
 Before declaring planning ready:
