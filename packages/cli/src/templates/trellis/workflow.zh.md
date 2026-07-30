@@ -153,11 +153,18 @@ Phase 3: 收尾 → 验证、更新 Spec、commit 并完成收尾
 
 ### 规划产物
 
-- `prd.md` — 需求、约束和验收标准。不要在这里放技术设计或执行检查清单。
+- `prd.md` — 面向人阅读的合同，固定章节依次为 `Goal`（目标）、`Requirements`（需求）和 `User-visible Outcomes`（用户可见结果）。目标使用有序列表，结果使用可核验 checklist（检查清单）；不要在这里放技术设计或执行检查清单。
+- 技术设计进入 `design.md`；有序实施工作和验证命令进入 `implement.md`；源码诊断和 `file:line` 证据进入 `research/`。
 - `design.md` — 复杂 Task 的技术设计：边界、契约、数据流、权衡、兼容性、发布/回滚方案。
 - `implement.md` — 复杂 Task 的执行计划：有序检查清单、验证命令、审核 gate 和回滚点。
 - `implement.jsonl` / `check.jsonl` — sub-agent Context 使用的 Spec 和研究清单。它们不能替代 `implement.md`。
 - 轻量 Task 可以只有 PRD。复杂 Task 在运行 `task.py start` 前必须具备 `prd.md`、`design.md` 和 `implement.md`。
+
+### PRD 图和 UI 门禁
+
+仅当依赖或流程难以用文字理解时才使用 Mermaid 图。关键路径必须使用 `classDef critical`、关键节点的 `critical` class（类）、红色 `linkStyle` 和明确文字标签；不能只依赖颜色表达。
+
+对于 UI Task，PRD 的用户可见结果必须包含原型和明确确认。最终规划摘要须报告 `prototype status: pending_user_approval` 或 `approved`；待确认状态会阻止 `task.py start`。
 
 ### 父/子 Task 树
 
@@ -175,7 +182,7 @@ child Task 用于可独立规划、实施、检查和归档的交付物。parent
 复杂工作：询问用户是否可以创建 Trellis Task 并进入规划阶段。如果用户回答否，应解释、澄清范围，或建议拆成更小的工作。
 [/workflow-state:no_task]
 
-### Phase 1：规划
+### Phase 1: 规划
 - 1.0 创建 Task `[required · once]`（仅在取得创建 Task 的同意后）
 - 1.1 探索需求 `[required · repeatable]`（`prd.md`；复杂 Task 还需要 `design.md` + `implement.md`）
 - 1.2 研究 `[optional · repeatable]`
@@ -330,7 +337,7 @@ brainstorm skill 会指导你：
 - 优先提供选项，而不是提出开放式问题
 - 用户每次回答后立刻更新 `prd.md`
 - 当交付物可以独立验证时，把大范围工作拆成一个 parent Task 和多个 child Task
-- 让 `prd.md` 聚焦需求和验收标准
+- 让 `prd.md` 聚焦目标、需求和用户可见结果。UI Task 必须在用户可见结果中包含原型，并在用户明确确认前报告 `prototype status: pending_user_approval`；待确认时不得运行 `task.py start`。
 - 对复杂 Task，在开始实施前产出 `design.md` 和 `implement.md`
 
 考虑 parent/child 拆分时：
@@ -680,7 +687,7 @@ AI 负责按批次 commit 此 Task 的代码改动，使 `/finish-work` 之后�
 
 ### 添加 lifecycle hook
 
-在 `task.json` 中添加 `hooks` field：
+在你的 `hooks` field 中添加到 `task.json`：
 
 ```json
 {
@@ -700,3 +707,13 @@ AI 负责按批次 commit 此 Task 的代码改动，使 `/finish-work` 之后�
 
 - `.trellis/spec/cli/backend/workflow-state-contract.md` — runtime 契约 + 写入器表 + 测试不变量
 - `.trellis/scripts/inject-workflow-state.py` — 实际解析器（只读取 workflow.md，不内置文本）
+
+<!-- prd-contract:START -->
+## PRD 合同
+
+最终 `prd.md` 的固定章节依次为 目标（`Goal`）、需求（`Requirements`）和 用户可见结果（`User-visible Outcomes`）。目标使用有序列表，用户可见结果使用检查清单。技术设计进入 `design.md`；有序执行进入 `implement.md`；源码诊断进入 `research/`。
+
+用户界面工作必须在用户可见结果中包含原型，并在用户明确确认前报告 `prototype status: pending_user_approval`；待确认时不得运行 `task.py start`。
+
+仅当流程图确实提升理解时才使用。 关键路径必须有明确标签、`classDef critical`、`class ... critical` 和红色 `linkStyle`（`stroke:#dc2626`）；不能只依赖颜色。
+<!-- prd-contract:END -->

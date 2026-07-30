@@ -3,7 +3,7 @@ Read the relevant development guidelines before starting your task.
 Execute these steps:
 
 1. **Read current task artifacts**:
-   - `prd.md` for requirements and acceptance criteria
+   - `prd.md` for the human-readable Goal, Requirements, and User-visible Outcomes contract
    - `design.md` if present for technical design
    - `implement.md` if present for execution order and validation plan
 

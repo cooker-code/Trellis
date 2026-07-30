@@ -168,7 +168,7 @@ Examples:
     "task_store.linked_child": "Linked as child of: {parent}",
     "task_store.created": "Created task: {task}",
     "task_store.next_steps": "Next steps:",
-    "task_store.next_fill_prd": "  - Fill prd.md with requirements and acceptance criteria",
+    "task_store.next_fill_prd": "  - Fill prd.md with Goal, Requirements, and User-visible Outcomes",
     "task_store.next_lightweight": "  - Lightweight task: PRD-only is valid",
     "task_store.next_complex": "  - Complex task: add design.md and implement.md before task.py start",
     "task_store.next_curate_jsonl": "  - Curate implement.jsonl / check.jsonl as spec/research manifests when sub-agents need context",

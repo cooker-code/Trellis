@@ -125,7 +125,7 @@ python3 ./.trellis/scripts/task.py add-context "$TASK_DIR" check "<path>" "<reas
 #### Step 4: Update prd.md
 
 ```bash
-# task.py create already created prd.md; edit it with requirements and acceptance criteria.
+# task.py create already created prd.md; keep it user-readable and move technical design, execution commands, and source evidence to design.md, implement.md, and research/.
 $EDITOR "$TASK_DIR/prd.md"
 ```
 
@@ -135,12 +135,13 @@ Use this shape:
 # Feature: <name>
 
 ## Goal
-...
+
+1. ...
 
 ## Requirements
 - ...
 
-## Acceptance Criteria
+## User-visible Outcomes
 - [ ] ...
 ```
 

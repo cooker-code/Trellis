@@ -21,7 +21,7 @@ Trellis task 系统完全存储在用户项目中的 `.trellis/tasks/` 下。每
 | 文件 | 目的 |
 | --- | --- |
 | `task.json` | 任务元数据：状态、受让人、优先级、分支、父/子 tasks 和类似字段。 |
-| `prd.md` | 要求、约束和验收标准。轻量级 tasks 可能仅适用于 PRD。 |
+| `prd.md` | 面向人阅读的目标、需求和用户可见结果，且保持该顺序。轻量级 tasks 可能仅适用于 PRD。 |
 | `design.md` | 复杂tasks的技术设计：边界、契约、数据流、兼容性、权衡。 |
 | `implement.md` | 复杂 tasks 的执行计划：有序清单、验证 commands、审查门、回滚点。 |
 | `implement.jsonl` | spec/研究文件列表，工具 agent 必须首先读取。 |

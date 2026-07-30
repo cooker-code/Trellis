@@ -6,6 +6,8 @@
     "build": "pnpm --filter @mindfoldhq/trellis-core build && pnpm --filter @mindfoldhq/trellis build",
     "build:core": "pnpm --filter @mindfoldhq/trellis-core build",
     "build:cli": "pnpm --filter @mindfoldhq/trellis build",
+    "check:prd-contract": "node packages/cli/scripts/check-prd-contract.mjs --check",
+    "sync:prd-contract": "node packages/cli/scripts/check-prd-contract.mjs",
     "test": "pnpm --filter @mindfoldhq/trellis-core test && pnpm --filter @mindfoldhq/trellis test",
     "test:core": "pnpm --filter @mindfoldhq/trellis-core test",
     "test:cli": "pnpm --filter @mindfoldhq/trellis test",

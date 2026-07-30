@@ -132,18 +132,17 @@ Before final review, verify all of the following:
 
 Lightweight tasks may omit `design.md` and `implement.md`; they may not skip evidence inspection, requirement convergence, final review, or fresh implementation approval.
 
-The final planning summary must show Goal, In Scope, Out of Scope, Acceptance Criteria, Key Decisions, relevant Risks or Deferred Items, and artifact status.
+The final planning summary must show Goal, Requirements, User-visible Outcomes, Key Decisions, relevant Risks or Deferred Items, and artifact status. For UI tasks it must also show `prototype status: pending_user_approval` or `approved`; do not run `task.py start` before explicit approval of the latest prototype.
 
 ## Artifact Rules
 
-`prd.md` records requirements and acceptance:
+`prd.md` is a human-readable product contract with exactly these fixed core sections in this order:
 
-- goal and user value
-- confirmed facts
-- requirements
-- acceptance criteria
-- out of scope
-- open questions that still block planning
+- `Goal` — an ordered list of user outcomes and value
+- `Requirements` — user/product behavior and user-understandable product stages
+- `User-visible Outcomes` — verifiable checklist items explaining what users can see and how they can judge success
+
+Use optional background, scope, or Mermaid material only when it improves understanding. `Confirmed Facts` is temporary exploration material, never a final PRD section. Technical design belongs in `design.md`; ordered execution and validation commands belong in `implement.md`; source diagnosis and `file:line` evidence belong in `research/`.
 
 `design.md` records technical design for complex tasks:
 
@@ -171,10 +170,22 @@ Before declaring planning ready or running `task.py start`, rewrite `prd.md` onc
 The pass must be lossless:
 
 - Collapse repeated facts into one authoritative section.
-- Fold temporary brainstorm sections such as `What I already know`, `Assumptions`, and resolved `Open Questions` into Goal, Background, Requirements, Technical Notes, or Acceptance Criteria.
+- Fold temporary brainstorm sections such as `What I already know`, `Assumptions`, and resolved `Open Questions` into Goal, Background, Requirements, or User-visible Outcomes. Move technical notes to `design.md` and evidence to `research/`.
 - Remove resolved open questions instead of leaving empty or already-answered sections.
 - Merge parallel bug and requirement lists when they describe the same work; keep each defect's severity, evidence, and file:line anchors on the owning requirement.
-- Preserve every file:line anchor, decision, constraint, requirement ID, and acceptance-criteria mapping.
+- Preserve every decision, user constraint, requirement ID, and outcome mapping; move file:line anchors to `research/`.
+
+## Mermaid Critical Paths
+
+Use Mermaid only when a dependency or flow is hard to understand in prose. Important paths must use a `critical` class, a red `linkStyle`, and explicit node labels; colour alone is never meaning. For example:
+
+```mermaid
+flowchart LR
+  A["Critical entry"] --> B["Critical processing"] --> C["Critical result"]
+  classDef critical fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:2px;
+  class A,B,C critical;
+  linkStyle 0,1 stroke:#dc2626,stroke-width:3px;
+```
 - Do not proceed to final review while any blocking open question remains.
 
 After the pass, read `prd.md` top to bottom and verify that no fact is repeated across sections unless the repetition adds new information.
@@ -205,3 +216,21 @@ Before declaring planning ready:
 - In a subsequent message, the user explicitly approved that summary for implementation.
 
 Do not start implementation merely because the user originally asked for implementation.
+
+<!-- prd-contract:START -->
+## PRD Contract
+
+Final `prd.md` sections are `Goal`, `Requirements`, and `User-visible Outcomes` in that order. Goals are ordered lists and user-visible outcomes are checklists. Technical design (technical requirements, algorithms, data contracts, compatibility, rollout, rollback) belongs in `design.md`; ordered execution (ordered checklist, commands, test execution) belongs in `implement.md`; source diagnosis (source diagnosis, file:line evidence, investigation facts) belongs in `research/`.
+
+For UI work, include the prototype in User-visible Outcomes and report `prototype status: pending_user_approval` until the user explicitly approves it; do not run `task.py start` while pending.
+
+Use Mermaid only when it improves understanding. A critical path needs explicit labels, `classDef critical`, `class ... critical`, and red `linkStyle` (`stroke:#dc2626`); never rely on colour alone.
+
+```mermaid
+flowchart LR
+  A["Critical entry"] --> B["Critical processing"] --> C["Critical result"]
+  classDef critical fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:2px;
+  class A,B,C critical;
+  linkStyle 0,1 stroke:#dc2626,stroke-width:3px;
+```
+<!-- prd-contract:END -->

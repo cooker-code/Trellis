@@ -14,7 +14,7 @@
 
 ## 任务形状
 
-当 Trellis task 有用时，请编写包含以下部分的简洁 PRD：
+当 Trellis task 有用时，PRD 只保留以下固定章节；架构、源码证据、文件清单和执行步骤应分别进入 `design.md`、`research/` 或 `implement.md`：
 
 ```markdown
 # Fill <package-or-layer> Trellis Specs
@@ -22,30 +22,15 @@
 ## Goal
 Write project-specific `.trellis/spec/` guidance for <scope>.
 
-## Scope
-- Spec directory:
-- Source directories to inspect:
-- Tests to inspect:
-- Out of scope:
+## Requirements
+- Capture the project-specific guidance contributors need.
+- Keep the scope focused on this package or layer.
 
-## Architecture Context
-Summarize the concrete findings from repository analysis.
-
-## Files To Create Or Update
-- `.trellis/spec/.../index.md`
-- `.trellis/spec/.../<topic>.md`
-
-## Rules
-- Adapt the spec file set to the real codebase.
-- Use real source examples with file paths.
-- Remove template-only sections that do not apply.
-- Do not modify product source code unless the task explicitly asks for it.
-
-## Acceptance Criteria
+## User-visible Outcomes
 - [ ] Specs contain concrete examples and anti-patterns from the repository.
 - [ ] No placeholder text remains.
 - [ ] Index files match the final spec files.
-- [ ] Claims are backed by source files, tests, or project docs.
+- [ ] Contributors can find and use the resulting guidance.
 ```
 
 ## 可选的辅助代理

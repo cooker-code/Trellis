@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/cli/backend/index.md", "reason": "CLI backend template, Python script, update and filesystem contracts"}
+{"file": ".trellis/spec/cli/unit-test/index.md", "reason": "Vitest unit and integration test conventions"}
+{"file": ".trellis/spec/docs-site/docs/index.md", "reason": "Docs-site MDX and bilingual documentation rules"}
+{"file": ".trellis/spec/docs-site/docs/sync-on-change.md", "reason": "Required downstream sync matrix for workflow and skill changes"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Single-source and duplicate-template prevention guidance"}
+{"file": ".trellis/spec/guides/cross-platform-thinking-guide.md", "reason": "Cross-platform template, Python and path compatibility guidance"}
+{"file": ".trellis/tasks/07-29-unify-prd-human-readable-contract/research/evidence.md", "reason": "Current source writers, mirrors, validators, tests, docs and baseline evidence"}

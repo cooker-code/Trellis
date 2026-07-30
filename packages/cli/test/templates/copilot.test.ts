@@ -97,8 +97,18 @@ describe("copilot getAllPrompts", () => {
 
 	it("loads prompt names from local copilot prompts directory", () => {
 		const names = getAllPrompts().map((p) => p.name).sort();
-		expect(names[0]).toBe("before-dev");
-		expect(names).toContain("start");
-		expect(names).toContain("update-spec");
+		expect(names).toEqual([
+			"break-loop",
+			"check",
+			"check-cross-layer",
+			"create-command",
+			"finish-work",
+			"integrate-skill",
+			"onboard",
+			"parallel",
+			"record-session",
+			"start",
+			"update-spec",
+		]);
 	});
 });

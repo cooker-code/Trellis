@@ -168,7 +168,7 @@ List 选项：
     "task_store.linked_child": "已关联为以下 task 的 child：{parent}",
     "task_store.created": "已创建 task：{task}",
     "task_store.next_steps": "下一步：",
-    "task_store.next_fill_prd": "  - 在 prd.md 中填写 requirements 和 acceptance criteria",
+    "task_store.next_fill_prd": "  - 在 prd.md 中填写目标、需求和用户可见结果",
     "task_store.next_lightweight": "  - 轻量 task：可以只保留 PRD",
     "task_store.next_complex": "  - 复杂 task：运行 task.py start 前添加 design.md 和 implement.md",
     "task_store.next_curate_jsonl": "  - Sub-agent 需要上下文时，将 implement.jsonl / check.jsonl 整理为 spec/research manifest",
