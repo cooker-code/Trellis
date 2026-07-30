@@ -229,10 +229,11 @@ gitnexus detect-changes --scope compare --base-ref main
 
 ### 待办
 
-- [ ] 用户审阅本轮实现结果。
-- [ ] 上游合并 Marketplace/docs-site PR 后，确认父仓库 submodule pointer 在上游 URL 可获取。
-- [ ] 获得用户后续授权后再进入 finish/commit/archive。
+- [x] 用户已于 2026-07-30 审阅并授权完成父仓库合并与清理。
+- [x] 用户明确 Marketplace/docs-site PR 不做合并，且不作为 `cooker-code/Trellis` 的父仓库合并门禁。
+- [x] 父仓库已移除 Marketplace/docs-site gitlink 变更，保持 `data-developer` 基线指针。
+- [x] 用户已授权进入 finish/commit/archive。
 
 ### 阻塞
 
-- 无本地阻塞；等待用户审阅及两个上游 submodule PR 合并。
+- 无；Marketplace/docs-site 两个上游 PR 不纳入 `cooker-code/Trellis` 的合并与清理范围。

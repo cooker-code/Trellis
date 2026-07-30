@@ -1,3 +1,8 @@
+# cooker-code/Trellis 合并边界
+
+- 在 `cooker-code/Trellis` 中提交、合并和清理分支时，`mindfold-ai/marketplace` 与 `mindfold-ai/docs` 的 PR 状态不作为父仓库合并门禁。
+- 除非用户另行明确要求，不创建、合并、关闭或等待这两个上游仓库的 PR；父仓库按 `cooker-code/Trellis` 自身状态独立完成合并与清理。
+
 <!-- TRELLIS:START -->
 # Trellis Instructions
 
