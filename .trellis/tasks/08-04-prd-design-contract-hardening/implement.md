@@ -48,6 +48,6 @@
 
 ## 7. 交付边界
 
-- [x] 复核发布模板、dogfood、docs-site 和 Marketplace 镜像；自动合同、双语结构和 docs lint 已通过。
+- [x] 复核发布模板与 dogfood；docs-site/Marketplace 增量已按用户要求撤回，并解除父仓库 hook、checker、测试对外部镜像的门禁依赖。
 - [x] 保留既有脏工作区并明确两批改动边界；未获授权未提交、推送、创建 PR、合并或发布。
 - [x] 最终分别报告代码/测试、Commit、Push、父仓库合并、外部文档仓库和发布状态。

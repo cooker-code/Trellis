@@ -153,7 +153,7 @@ PRD 继续保留三个核心二级章节。在“需求”内按实际存在的�
 - `packages/cli/src/templates/common/skills/brainstorm*.md`：收集规划画像、需求编号、prototype、交互图和数据库设计。
 - `packages/cli/src/templates/trellis/workflow*.md`、`.trellis/workflow.md`：planning/start 门禁说明。
 - `packages/cli/src/templates/common/bundled-skills/trellis-meta/references/local-architecture/task-system*.md`：Task 模型说明。
-- docs-site 与 Marketplace 模板同步语义，但外部仓库 PR 不作为父仓库门禁。
+- docs-site 与 Marketplace 属于外部发布面，不由父仓库 pre-commit、合同 checker 或单元测试同步/扫描；需要外部发布时必须单独取得授权，外部 PR 不作为父仓库门禁。
 
 ### Tests
 
