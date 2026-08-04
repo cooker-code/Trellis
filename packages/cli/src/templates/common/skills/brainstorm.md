@@ -130,9 +130,9 @@ Before final review, verify all of the following:
 - blocking open questions are empty
 - technical unknowns are researched or explicitly deferred without changing MVP behavior
 
-Lightweight tasks may omit `design.md` and `implement.md`; they may not skip evidence inspection, requirement convergence, final review, or fresh implementation approval.
+Tasks derived as `lightweight` may omit `design.md` and `implement.md`; tasks derived as `complex` require both. A `pending` profile cannot `start`. No tier may skip evidence inspection, requirement convergence, final review, or fresh implementation approval.
 
-The final planning summary must show Goal, Requirements, User-visible Outcomes, Key Decisions, relevant Risks or Deferred Items, and artifact status. For UI tasks it must also show `prototype status: pending_user_approval` or `approved`; do not run `task.py start` before explicit approval of the latest prototype.
+The final planning summary must show Goal, numbered Requirements, mapped User-visible Outcomes, all seven planning-profile answers, the derived tier, Key Decisions, relevant Risks or Deferred Items, and artifact status. Save the complete profile with `task.py set-planning-profile`; never classify lightweight/complex from free-form judgment alone. Create UI tasks with `--meta ui=true`; User-visible Outcomes must retain the managed prototype entry, preview, status, and digest block. After showing the latest prototype, record explicit approval with `task.py approve-prototype <task> <approval-evidence>` and report `prototype-status` including PRD consistency.
 
 ## Artifact Rules
 
@@ -159,7 +159,7 @@ Use optional background, scope, or Mermaid material only when it improves unders
 - risky files or rollback points
 - follow-up checks before `task.py start`
 
-Lightweight tasks may have only `prd.md`. Complex tasks must have `prd.md`, `design.md`, and `implement.md` before `task.py start`.
+Tasks derived as `lightweight` may have only `prd.md`. Tasks derived as `complex` must have `prd.md`, `design.md`, and `implement.md` before `task.py start`; `pending` tasks cannot `start`.
 
 `implement.md` is not a replacement for `implement.jsonl`. On sub-agent-dispatch workflows, `implement.jsonl` and `check.jsonl` must each contain at least one real spec/research entry before `task.py start`; the seed `_example` row does not count. Inline workflows skip this JSONL gate because Phase 2 loads context through `trellis-before-dev`.
 
@@ -220,17 +220,21 @@ Do not start implementation merely because the user originally asked for impleme
 <!-- prd-contract:START -->
 ## PRD Contract
 
-Final `prd.md` sections are `Goal`, `Requirements`, and `User-visible Outcomes` in that order. Goals are ordered lists and user-visible outcomes are checklists. Technical design (technical requirements, algorithms, data contracts, compatibility, rollout, rollback) belongs in `design.md`; ordered execution (ordered checklist, commands, test execution) belongs in `implement.md`; source diagnosis (source diagnosis, file:line evidence, investigation facts) belongs in `research/`.
+Final `prd.md` sections are `Goal`, `Requirements`, and `User-visible Outcomes` in that order. Goals are ordered lists; Requirements use actual change-type groups with `R1/R1.1` IDs; User-visible Outcomes use `O1` checklists mapped to requirement IDs. Technical design (technical requirements, algorithms, data contracts, compatibility, rollout, rollback) belongs in `design.md`; ordered execution (ordered checklist, commands, test execution) belongs in `implement.md`; source diagnosis (source diagnosis, file:line evidence, investigation facts) belongs in `research/`.
 
-For UI work, include the prototype in User-visible Outcomes and report `prototype status: pending_user_approval` until the user explicitly approves it; do not run `task.py start` while pending.
+Use `task.py set-planning-profile <task> ...` to answer all seven profile questions at once: all `false` derives `lightweight`, any `true` derives `complex`, and unresolved answers derive `pending` and block `start`. Complex tasks require `design.md` and `implement.md`.
 
-Use Mermaid only when it improves understanding. A critical path needs explicit labels, `classDef critical`, `class ... critical`, and red `linkStyle` (`stroke:#dc2626`); never rely on colour alone.
+UI work uses `--meta ui=true` and the standard `prototype/manifest.json`; User-visible Outcomes must show the prototype entry, preview, status, and digest. Inspect current state with `task.py prototype-status <task>`, then record approval and synchronize the PRD with `task.py approve-prototype <task> <approval-evidence>`; `task.py start` is a hard gate.
+
+Diagrams are normally optional. When `interaction_change=true`, put one in User-visible Outcomes and identify the changed flow with Add/Change/Remove text, `classDef changed`, and red `linkStyle` (`stroke:#dc2626`).
+
+When `data_model_change=true`, `design.md` must include the data model, executable `DDL`, table and every-field comments, constraints, migration, and rollback; an `ER` diagram is optional.
 
 ```mermaid
 flowchart LR
-  A["Critical entry"] --> B["Critical processing"] --> C["Critical result"]
-  classDef critical fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:2px;
-  class A,B,C critical;
-  linkStyle 0,1 stroke:#dc2626,stroke-width:3px;
+  A["Existing entry"] --> B["Change: confirmation step"] --> C["Existing result"]
+  classDef changed fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:2px;
+  class B changed;
+  linkStyle 0 stroke:#dc2626,stroke-width:3px;
 ```
 <!-- prd-contract:END -->

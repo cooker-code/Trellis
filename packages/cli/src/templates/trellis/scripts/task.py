@@ -15,6 +15,10 @@ Usage:
     python3 task.py set-base-branch <dir> <branch>  # Set PR target branch
     python3 task.py set-scope <dir> <scope>     # Set scope for PR title
     python3 task.py set-meta <dir> <key> <value>  # Set a task metadata key
+    python3 task.py set-planning-profile <dir> [profile flags]  # Classify planning scope
+    python3 task.py planning-status <dir>         # Show planning contract status
+    python3 task.py prototype-status <dir>      # Show the current UI prototype contract
+    python3 task.py approve-prototype <dir> <evidence>  # Approve the current UI prototype
     python3 task.py archive <task-dir>          # Archive completed task
     python3 task.py list                        # List active tasks
     python3 task.py list-archive [month]        # List archived tasks
@@ -48,6 +52,22 @@ from common.active_task import (
 from common.io import read_json, write_json
 from common.task_utils import resolve_task_dir, run_task_hooks
 from common.tasks import iter_active_tasks, children_progress
+from common.prototype_gate import (
+    APPROVED_STATUS,
+    approve_ui_prototype,
+    compute_artifact_digest,
+    is_ui_task,
+    load_ui_manifest,
+    validate_ui_prototype,
+)
+from common.planning_gate import (
+    PROFILE_FIELDS,
+    apply_planning_profile,
+    planning_status,
+    sync_ui_prototype_block,
+    ui_prototype_block_current,
+    validate_planning_contract,
+)
 
 # Import command handlers from split modules (also re-exports for plan.py compatibility)
 from common.task_store import (
@@ -70,6 +90,23 @@ from common.task_context import (
 # =============================================================================
 # Command: start / finish
 # =============================================================================
+
+def _print_prototype_errors(
+    errors: list[str], heading_key: str = "prototype_gate.blocked"
+) -> None:
+    """Print localized, actionable prototype-gate failures."""
+    print(colored(t(heading_key), Colors.RED))
+    for error in errors:
+        print(f"  - {t('prototype_gate.' + error)}")
+
+
+def _print_planning_errors(
+    errors: list[str], heading_key: str = "planning_gate.blocked"
+) -> None:
+    """Print localized, actionable planning-contract failures."""
+    print(colored(t(heading_key), Colors.RED))
+    for error in errors:
+        print(f"  - {t('planning_gate.' + error)}")
 
 def cmd_start(args: argparse.Namespace) -> int:
     """Set active task."""
@@ -95,6 +132,23 @@ def cmd_start(args: argparse.Namespace) -> int:
         task_dir = str(full_path)
 
     task_json_path = full_path / FILE_TASK_JSON
+    task_data = read_json(task_json_path) if task_json_path.is_file() else {}
+    if not isinstance(task_data, dict):
+        task_data = {}
+
+    # Versioned planning validation shares the prototype gate's no-side-effect
+    # boundary. Legacy tasks return no errors and retain prior behavior.
+    planning_errors = validate_planning_contract(full_path, task_data)
+    if planning_errors:
+        _print_planning_errors(planning_errors)
+        return 1
+
+    # This must remain before every start side effect: both the normal pointer
+    # branch and degraded mode share this check.
+    _, prototype_errors = validate_ui_prototype(full_path, task_data)
+    if prototype_errors:
+        _print_prototype_errors(prototype_errors)
+        return 1
 
     if not resolve_context_key():
         # Degraded mode: no session identity available.
@@ -140,6 +194,137 @@ def cmd_start(args: argparse.Namespace) -> int:
     else:
         print(colored(t("task.set_current_failed"), Colors.RED))
         return 1
+
+
+def cmd_approve_prototype(args: argparse.Namespace) -> int:
+    """Bind explicit approval evidence to the current UI prototype digest."""
+    repo_root = get_repo_root()
+    task_dir = resolve_task_dir(args.dir, repo_root)
+    task_json_path = task_dir / FILE_TASK_JSON
+    task_data = read_json(task_json_path) if task_json_path.is_file() else None
+    if not isinstance(task_data, dict):
+        print(colored(t("task.task_not_found", task=args.dir), Colors.RED))
+        return 1
+    if not is_ui_task(task_data):
+        _print_prototype_errors(["not_ui_task"], "prototype_gate.approval_failed")
+        return 1
+    original_manifest, original_errors = load_ui_manifest(task_dir, task_data)
+    if original_errors or not isinstance(original_manifest, dict):
+        _print_prototype_errors(
+            original_errors or ["invalid_manifest"], "prototype_gate.approval_failed"
+        )
+        return 1
+    digest, errors = approve_ui_prototype(task_dir, task_data, args.evidence)
+    if errors:
+        _print_prototype_errors(errors, "prototype_gate.approval_failed")
+        return 1
+    manifest, manifest_errors = load_ui_manifest(task_dir, task_data)
+    if manifest_errors or not isinstance(manifest, dict):
+        _print_prototype_errors(
+            manifest_errors or ["invalid_manifest"], "prototype_gate.approval_failed"
+        )
+        return 1
+    prd_errors = sync_ui_prototype_block(
+        task_dir,
+        entry=str(manifest.get("entry", "")),
+        preview=str(manifest.get("preview", "")),
+        status=str(manifest.get("status", "")),
+        digest=digest,
+    )
+    if prd_errors:
+        if not write_json(task_dir / "prototype" / "manifest.json", original_manifest):
+            prd_errors.append("prototype_rollback_failed")
+        _print_planning_errors(prd_errors, "planning_gate.prototype_sync_failed")
+        return 1
+    print(colored(t("prototype_gate.approved", digest=digest), Colors.GREEN))
+    return 0
+
+
+def cmd_prototype_status(args: argparse.Namespace) -> int:
+    """Print the current UI prototype contract and freshly computed digest."""
+    repo_root = get_repo_root()
+    task_dir = resolve_task_dir(args.dir, repo_root)
+    task_json_path = task_dir / FILE_TASK_JSON
+    task_data = read_json(task_json_path) if task_json_path.is_file() else None
+    if not isinstance(task_data, dict):
+        print(colored(t("task.task_not_found", task=args.dir), Colors.RED))
+        return 1
+    if not is_ui_task(task_data):
+        _print_prototype_errors(["not_ui_task"], "prototype_gate.status_failed")
+        return 1
+    manifest, errors = load_ui_manifest(task_dir, task_data)
+    if errors:
+        _print_prototype_errors(errors, "prototype_gate.status_failed")
+        return 1
+    assert manifest is not None
+    digest, errors = compute_artifact_digest(task_dir, manifest)
+    if errors:
+        _print_prototype_errors(errors, "prototype_gate.status_failed")
+        return 1
+    assert digest is not None
+    evidence = manifest.get("approval_evidence")
+    approval_current = (
+        manifest.get("status") == APPROVED_STATUS
+        and manifest.get("artifact_digest") == digest
+        and manifest.get("approved_digest") == digest
+        and isinstance(evidence, str)
+        and bool(evidence.strip())
+    )
+    prd_reference_current = ui_prototype_block_current(
+        task_dir,
+        entry=str(manifest.get("entry", "")),
+        preview=str(manifest.get("preview", "")),
+        status=str(manifest.get("status", "")),
+        digest=digest if manifest.get("status") == APPROVED_STATUS else None,
+    )
+    print(json.dumps({
+        "entry": manifest.get("entry"),
+        "preview": manifest.get("preview"),
+        "status": manifest.get("status"),
+        "current_digest": digest,
+        "artifact_digest": manifest.get("artifact_digest"),
+        "approved_digest": manifest.get("approved_digest"),
+        "approval_evidence": evidence,
+        "approval_current": approval_current,
+        "prd_reference_current": prd_reference_current,
+    }, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_set_planning_profile(args: argparse.Namespace) -> int:
+    """Persist all complexity answers together and derive the planning tier."""
+    repo_root = get_repo_root()
+    task_dir = resolve_task_dir(args.dir, repo_root)
+    task_json_path = task_dir / FILE_TASK_JSON
+    task_data = read_json(task_json_path) if task_json_path.is_file() else None
+    if not isinstance(task_data, dict):
+        print(colored(t("task.task_not_found", task=args.dir), Colors.RED))
+        return 1
+    values = {field: getattr(args, field) for field in PROFILE_FIELDS}
+    updated, errors = apply_planning_profile(task_data, values)
+    if errors or updated is None:
+        _print_planning_errors(errors, "planning_gate.profile_failed")
+        return 1
+    if not write_json(task_json_path, updated):
+        _print_planning_errors(["task_write_failed"], "planning_gate.profile_failed")
+        return 1
+    meta = updated.get("meta", {})
+    print(colored(t("planning_gate.profile_saved", tier=meta.get("planning_tier")), Colors.GREEN))
+    return 0
+
+
+def cmd_planning_status(args: argparse.Namespace) -> int:
+    """Print the side-effect-free planning-contract report."""
+    repo_root = get_repo_root()
+    task_dir = resolve_task_dir(args.dir, repo_root)
+    task_json_path = task_dir / FILE_TASK_JSON
+    task_data = read_json(task_json_path) if task_json_path.is_file() else None
+    if not isinstance(task_data, dict):
+        print(colored(t("task.task_not_found", task=args.dir), Colors.RED))
+        return 1
+    report = planning_status(task_dir, task_data)
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+    return 0 if report.get("valid") else 1
 
 
 def cmd_finish(args: argparse.Namespace) -> int:
@@ -483,6 +668,39 @@ def main() -> int:
     p_setmeta.add_argument("key", help=t("task.arg_meta_key"))
     p_setmeta.add_argument("value", help=t("task.arg_meta_value"))
 
+    # set-planning-profile
+    p_profile = subparsers.add_parser(
+        "set-planning-profile", help=t("task.arg_set_planning_profile")
+    )
+    p_profile.add_argument("dir", help=t("task.arg_dir"))
+    for field in PROFILE_FIELDS:
+        p_profile.add_argument(
+            "--" + field.replace("_", "-"),
+            dest=field,
+            required=True,
+            choices=("true", "false"),
+            help=t("task.arg_" + field),
+        )
+
+    # planning-status
+    p_planning_status = subparsers.add_parser(
+        "planning-status", help=t("task.arg_planning_status")
+    )
+    p_planning_status.add_argument("dir", help=t("task.arg_dir"))
+
+    # prototype-status
+    p_prototype_status = subparsers.add_parser(
+        "prototype-status", help=t("task.arg_prototype_status")
+    )
+    p_prototype_status.add_argument("dir", help=t("task.arg_dir"))
+
+    # approve-prototype
+    p_approve_prototype = subparsers.add_parser(
+        "approve-prototype", help=t("task.arg_approve_prototype")
+    )
+    p_approve_prototype.add_argument("dir", help=t("task.arg_dir"))
+    p_approve_prototype.add_argument("evidence", help=t("task.arg_approval_evidence"))
+
     # archive
     p_archive = subparsers.add_parser("archive", help=t("task.arg_archive"))
     p_archive.add_argument("name", help=t("task.arg_name"))
@@ -526,6 +744,10 @@ def main() -> int:
         "set-base-branch": cmd_set_base_branch,
         "set-scope": cmd_set_scope,
         "set-meta": cmd_set_meta,
+        "set-planning-profile": cmd_set_planning_profile,
+        "planning-status": cmd_planning_status,
+        "prototype-status": cmd_prototype_status,
+        "approve-prototype": cmd_approve_prototype,
         "archive": cmd_archive,
         "add-subtask": cmd_add_subtask,
         "remove-subtask": cmd_remove_subtask,

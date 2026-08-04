@@ -54,17 +54,23 @@ describe("PRD contract checker", () => {
     ["section order", "packages/cli/src/templates/trellis/scripts/common/task_store.py", "## Requirements", "## User-visible Outcomes\n\n- TBD\n\n## Requirements"],
     ["legacy acceptance heading", "packages/cli/src/templates/trellis/scripts/common/task_store.py", "## User-visible Outcomes", "## Acceptance Criteria"],
     ["technical boundary", "packages/cli/src/templates/trellis/workflow.md", "technical requirements", "product requirements"],
-    ["UI approval gate", "packages/cli/src/templates/trellis/workflow.md", "pending_user_approval", "prototype_pending"],
-    ["Mermaid critical class", "packages/cli/src/templates/common/skills/brainstorm.md", "classDef critical", "classDef emphasis"],
-    ["Mermaid red link", "packages/cli/src/templates/common/skills/brainstorm.md", "linkStyle 0,1 stroke:#dc2626", "linkStyle 0,1 stroke:#000000"],
-    ["legacy marketplace PRD definition", "marketplace/workflows/tdd/workflow.md", "Goals use an ordered list", "requirements, constraints, and acceptance criteria"],
+    ["UI approval gate", "packages/cli/src/templates/trellis/workflow.md", "task.py prototype-status <task>", "task.py prototype-pending <task>"],
+    ["numbered requirements", "packages/cli/src/templates/trellis/scripts/common/task_store.py", "### R1 Add", "### Add"],
+    ["mapped outcomes", "packages/cli/src/templates/trellis/scripts/common/task_store.py", "**O1 (R1.1)**", "**O1**"],
+    ["Mermaid changed class", "packages/cli/src/templates/common/skills/brainstorm.md", "classDef changed", "classDef emphasis"],
+    ["Mermaid red link", "packages/cli/src/templates/common/skills/brainstorm.md", "linkStyle 0 stroke:#dc2626", "linkStyle 0 stroke:#000000"],
+    ["legacy marketplace PRD definition", "marketplace/workflows/tdd/workflow.md", "Goals are ordered lists", "requirements, constraints, and acceptance criteria"],
   ])("rejects %s drift", (_name, relativePath, from, to) => {
     expectRejected(copyContractFixture(), relativePath, from, to);
   });
 
   it.each([
     ["UI approval", (contract: Record<string, unknown>) => { contract.uiPrototypeApprovalRequired = false; }],
-    ["Mermaid red link", (contract: Record<string, unknown>) => { (contract.mermaidCriticalPath as Record<string, unknown>).requiredLinkStyle = "stroke:#000000"; }],
+    ["UI prototype start gate", (contract: Record<string, unknown>) => { contract.uiPrototype = {}; }],
+    ["planning profile", (contract: Record<string, unknown>) => { (contract.planningProfile as Record<string, unknown>).allFalseTier = "complex"; }],
+    ["requirement numbering", (contract: Record<string, unknown>) => { (contract.requirements as Record<string, unknown>).emptyGroupsAllowed = true; }],
+    ["Mermaid red link", (contract: Record<string, unknown>) => { (contract.interactionDiagram as Record<string, unknown>).requiredLinkStyle = "stroke:#000000"; }],
+    ["database comments", (contract: Record<string, unknown>) => { (contract.databaseDesign as Record<string, unknown>).fieldCommentsRequired = false; }],
     ["technical boundary", (contract: Record<string, unknown>) => { (contract.technicalDetailTargets as Record<string, string[]>).design = ["product copy"]; }],
   ])("rejects invalid contract %s", (_name, mutate) => {
     expectContractRejected(copyContractFixture(), mutate);
@@ -86,9 +92,19 @@ describe("PRD contract checker", () => {
     expect(taskDir).toBeDefined();
     if (!taskDir) throw new Error("task.py create did not create the PRD probe task");
     const prd = fs.readFileSync(path.join(root, ".trellis/tasks", taskDir, "prd.md"), "utf8");
+    const taskData = JSON.parse(
+      fs.readFileSync(path.join(root, ".trellis/tasks", taskDir, "task.json"), "utf8"),
+    );
     expect(prd.indexOf(`## ${goal}`)).toBeLessThan(prd.indexOf(`## ${requirements}`));
     expect(prd.indexOf(`## ${requirements}`)).toBeLessThan(prd.indexOf(`## ${outcomes}`));
     expect(prd).toMatch(/\n1\. /);
+    expect(prd).toMatch(/\n### R1 /);
+    expect(prd).toMatch(/\n- \*\*R1\.1/);
+    expect(prd).toMatch(/\n- \[ \] \*\*O1\s*[（(]R1\.1[）)]/);
     expect(prd).toMatch(/\n- \[ \]/);
+    expect(taskData.meta).toMatchObject({
+      planning_contract_version: "2",
+      planning_tier: "pending",
+    });
   });
 });

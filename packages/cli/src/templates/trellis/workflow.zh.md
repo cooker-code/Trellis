@@ -164,7 +164,7 @@ Phase 3: 收尾 → 验证、更新 Spec、commit 并完成收尾
 
 仅当依赖或流程难以用文字理解时才使用 Mermaid 图。关键路径必须使用 `classDef critical`、关键节点的 `critical` class（类）、红色 `linkStyle` 和明确文字标签；不能只依赖颜色表达。
 
-对于 UI Task，PRD 的用户可见结果必须包含原型和明确确认。最终规划摘要须报告 `prototype status: pending_user_approval` 或 `approved`；待确认状态会阻止 `task.py start`。
+对于 UI Task，创建时使用 `--meta ui=true`。这会在与 `research/` 同级的位置建立 `prototype/manifest.json`；完成 `prototype/` 内的主入口和预览，用 `task.py prototype-status <task>` 读取当前摘要和状态，向用户展示最新产物后，再使用 `task.py approve-prototype <task> <approval-evidence>` 记录明确批准。最终规划摘要须报告入口、当前摘要以及 `prototype status: pending_user_approval` 或 `approved`；`task.py start` 会在改变 Task 或会话状态前校验文件和绑定内容摘要的批准。
 
 ### 父/子 Task 树
 
@@ -441,7 +441,7 @@ python3 ./.trellis/scripts/task.py add-context "$TASK_DIR" check "<path>" "<reas
 python3 ./.trellis/scripts/task.py start <task-dir>
 ```
 
-轻量 Task 可以只有 `prd.md`。复杂 Task 必须先完成并审核 `prd.md`、`design.md` 和 `implement.md`。在派发 sub-agent 的平台上，开始前 `implement.jsonl` 和 `check.jsonl` 都必须包含真实的整理记录。Runtime 使用方为了兼容性可以容忍文件缺失或只有 seed 的 manifest，但这不代表规划已就绪。
+Start 前必须用 `task.py set-planning-profile` 一次回答七项画像。全部为 `false` 推导为 `lightweight`，可以只有 `prd.md`；任一为 `true` 推导为 `complex`，必须先完成并审核 `prd.md`、`design.md` 和 `implement.md`；任何未决项都推导为 `pending` 并阻止 start。在派发 sub-agent 的平台上，开始前 `implement.jsonl` 和 `check.jsonl` 还必须包含真实的整理记录。
 
 该命令成功后，每轮面包屑会自动切换到 `[workflow-state:in_progress]`，后续进入 Phase 2 / 3。
 
@@ -711,9 +711,13 @@ AI 负责按批次 commit 此 Task 的代码改动，使 `/finish-work` 之后�
 <!-- prd-contract:START -->
 ## PRD 合同
 
-最终 `prd.md` 的固定章节依次为 目标（`Goal`）、需求（`Requirements`）和 用户可见结果（`User-visible Outcomes`）。目标使用有序列表，用户可见结果使用检查清单。技术设计进入 `design.md`；有序执行进入 `implement.md`；源码诊断进入 `research/`。
+最终 `prd.md` 的固定章节依次为 目标（`Goal`）、需求（`Requirements`）和 用户可见结果（`User-visible Outcomes`）。目标使用有序列表；需求按实际变更类型使用 `R1/R1.1` 编号；用户可见结果使用 `O1` 检查清单并映射需求编号。技术设计进入 `design.md`；有序执行进入 `implement.md`；源码诊断进入 `research/`。
 
-用户界面工作必须在用户可见结果中包含原型，并在用户明确确认前报告 `prototype status: pending_user_approval`；待确认时不得运行 `task.py start`。
+使用 `task.py set-planning-profile <task> ...` 一次回答七项画像：全部为 `false` 推导为 `lightweight`，任一为 `true` 推导为 `complex`，未决则为 `pending` 并禁止 `start`。复杂 Task 必须有 `design.md` 和 `implement.md`。
 
-仅当流程图确实提升理解时才使用。 关键路径必须有明确标签、`classDef critical`、`class ... critical` 和红色 `linkStyle`（`stroke:#dc2626`）；不能只依赖颜色。
+用户界面工作使用 `--meta ui=true` 和标准 `prototype/manifest.json`；PRD 的“用户可见结果”必须展示原型入口、预览、状态和摘要。使用 `task.py prototype-status <task>` 查看当前状态，用户查看最新原型后运行 `task.py approve-prototype <task> <approval-evidence>` 记录批准并同步 PRD；`task.py start` 执行硬门禁。
+
+流程图通常可选；仅当 `interaction_change=true` 时必须放在“用户可见结果”中，并用“新增/修改/删除”文字、`classDef changed` 和红色 `linkStyle`（`stroke:#dc2626`）突出变化流程。
+
+当 `data_model_change=true` 时，`design.md` 必须包含数据模型、正式 `DDL`、表与全部字段备注、约束、迁移和回滚；`ER` 图可选。
 <!-- prd-contract:END -->

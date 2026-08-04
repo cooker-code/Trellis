@@ -2038,6 +2038,33 @@ describe("regression: current-task path normalization", () => {
     };
     expect(beforeStart.status).toBe("planning");
 
+    // Resolve the v2 planning contract so this test can stay focused on the
+    // create/start pointer idempotency that it covers.
+    fs.writeFileSync(
+      path.join(tmpDir, relTaskDir, "prd.md"),
+      `# R7 Idempotency
+
+## Goal
+
+1. Keep create/start activation idempotent.
+
+## Requirements
+
+### R1 Preserve
+
+- **R1.1** Preserve the active-task pointer across start.
+
+## User-visible Outcomes
+
+- [ ] **O1 (R1.1)** The task enters in_progress without changing its pointer.
+`,
+      "utf-8",
+    );
+    execSync(
+      `${pythonCmd} ${JSON.stringify(taskScriptPath)} set-planning-profile ${JSON.stringify(relTaskDir)} --interaction-change false --data-model-change false --public-contract-change false --cross-layer-change false --state-lifecycle-change false --security-compatibility-rollout-change false --technical-tradeoff false`,
+      { cwd: tmpDir, encoding: "utf-8", env: sessionEnv() },
+    );
+
     // Now run start with the same session — must not error.
     let startStatus = 0;
     let startOutput = "";

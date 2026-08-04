@@ -57,6 +57,8 @@ from .task_utils import (
     resolve_task_dir,
     run_task_hooks,
 )
+from .prototype_gate import MANIFEST_RELATIVE_PATH, PENDING_STATUS
+from .planning_gate import render_ui_prototype_block, seed_planning_meta
 
 
 # =============================================================================
@@ -195,12 +197,23 @@ def _parse_meta_pairs(pairs: list[str] | None) -> dict[str, str] | None:
     return meta
 
 
-def _default_prd_content(title: str, description: str | None = None) -> str:
+def _default_prd_content(
+    title: str, description: str | None = None, *, ui_task: bool = False
+) -> str:
     """Return the default PRD skeleton created with every task."""
     language = get_locale()
     goal = (description or "").strip()
     heading = title.strip() or ("未命名任务" if language == "zh" else "Untitled task")
     if language == "zh":
+        prototype = ""
+        if ui_task:
+            prototype = "\n\n" + render_ui_prototype_block(
+                locale="zh",
+                entry="prototype/index.html",
+                preview="prototype/preview.png",
+                status=PENDING_STATUS,
+                digest=None,
+            )
         return f"""# {heading}
 
 ## 目标
@@ -209,13 +222,24 @@ def _default_prd_content(title: str, description: str | None = None) -> str:
 
 ## 需求
 
-- 待补充
+### R1 新增
+
+- **R1.1 首项改动**：待补充。
 
 ## 用户可见结果
 
-- [ ] 待补充
+- [ ] **O1（R1.1）** 待补充。{prototype}
 """
     goal = goal or "TBD."
+    prototype = ""
+    if ui_task:
+        prototype = "\n\n" + render_ui_prototype_block(
+            locale="en",
+            entry="prototype/index.html",
+            preview="prototype/preview.png",
+            status=PENDING_STATUS,
+            digest=None,
+        )
     return f"""# {heading}
 
 ## Goal
@@ -224,11 +248,13 @@ def _default_prd_content(title: str, description: str | None = None) -> str:
 
 ## Requirements
 
-- TBD
+### R1 Add
+
+- **R1.1 First change**: TBD.
 
 ## User-visible Outcomes
 
-- [ ] TBD
+- [ ] **O1 (R1.1)** TBD.{prototype}
 """
 
 
@@ -248,6 +274,7 @@ def cmd_create(args: argparse.Namespace) -> int:
     meta = _parse_meta_pairs(getattr(args, "meta", None))
     if meta is None:
         return 1
+    meta = seed_planning_meta(meta)
 
     # Validate --package (CLI source: fail-fast)
     package: str | None = getattr(args, "package", None)
@@ -398,12 +425,33 @@ def cmd_create(args: argparse.Namespace) -> int:
         "meta": meta,
     }
 
+    if meta.get("ui") == "true":
+        meta["prototype_manifest"] = MANIFEST_RELATIVE_PATH
+
     write_json(task_json_path, task_data)
+
+    if meta.get("ui") == "true":
+        prototype_dir = task_dir / "prototype"
+        prototype_dir.mkdir(exist_ok=True)
+        write_json(
+            prototype_dir / "manifest.json",
+            {
+                "version": 1,
+                "entry": "prototype/index.html",
+                "preview": "prototype/preview.png",
+                "artifact_digest": None,
+                "status": PENDING_STATUS,
+                "approved_digest": None,
+                "approval_evidence": None,
+            },
+        )
 
     prd_path = task_dir / "prd.md"
     if not prd_path.exists():
         prd_path.write_text(
-            _default_prd_content(args.title, description),
+            _default_prd_content(
+                args.title, description, ui_task=meta.get("ui") == "true"
+            ),
             encoding="utf-8",
         )
 
@@ -504,6 +552,8 @@ def cmd_create(args: argparse.Namespace) -> int:
     print(t("task_store.next_fill_prd"), file=sys.stderr)
     print(t("task_store.next_lightweight"), file=sys.stderr)
     print(t("task_store.next_complex"), file=sys.stderr)
+    if meta.get("ui") == "true":
+        print(t("task_store.next_ui_prototype"), file=sys.stderr)
     if seeded_jsonl:
         print(
             t("task_store.next_curate_jsonl"),

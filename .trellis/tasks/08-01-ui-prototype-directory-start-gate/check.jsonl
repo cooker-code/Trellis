@@ -1,0 +1,4 @@
+{"file":".trellis/spec/cli/backend/workflow-state-contract.md","reason":"Review lifecycle transition, hook ordering, and no-side-effect failure behavior"}
+{"file":"packages/cli/src/templates/common/bundled-skills/trellis-meta/references/local-architecture/task-system.md","reason":"Review the standard task layout and user-facing prototype artifact contract"}
+{"file":".trellis/tasks/archive/2026-07/07-29-unify-prd-human-readable-contract/design.md","reason":"Review compatibility with the previously shipped UI prototype approval rule"}
+{"file":".trellis/tasks/08-01-ui-prototype-directory-start-gate/research/current-state.md","reason":"Review implementation against the verified baseline and known soft-gate gap"}

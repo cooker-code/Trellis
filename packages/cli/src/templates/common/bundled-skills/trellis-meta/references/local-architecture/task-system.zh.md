@@ -73,6 +73,18 @@ python3 ./.trellis/scripts/task.py remove-subtask <parent-dir> <child-dir>
 
 AI 不应把阶段编号当作 task 状态。task 进度主要由 `status`、产物是否存在（`prd.md`，以及可选的 `design.md` / `implement.md`）、是否为 sub-agent 模式配置了 JSONL 上下文，以及 `workflow.md` 中的阶段说明共同决定。
 
+## 规划与 PRD 合同
+
+通过 `task.py create` 创建的标准 Task 使用规划合同 v2。七项布尔画像是唯一的层级输入：全部为 `false` 推导为 `lightweight`；任一为 `true` 推导为 `complex`；存在未决项则为 `pending`，并阻止 `task.py start`。没有 `meta.planning_contract_version=2` 的历史 Task 保持旧路径。
+
+PRD 固定保持“目标 → 需求 → 用户可见结果”。目标使用有序列表；需求只按实际发生的新增、修改、删除、保持不变和边界分组，并使用稳定的 `R1` / `R1.1` 编号；检查清单结果使用 `O1` 编号并映射需求编号。技术设计进入 `design.md`，有序执行进入 `implement.md`，源码证据进入 `research/`。
+
+当 `interaction_change=true` 时，“用户可见结果”还必须包含交互变化 Mermaid 图，用新增/修改/删除文字和红色 `changed` 节点/路径标出变化。当 `data_model_change=true` 时，`design.md` 必须包含正式 DDL、表和全部字段备注、约束、迁移及回滚；ER 图保持可选。
+
+## UI 原型合同
+
+创建用户界面 Task 时使用 `--meta ui=true`。Trellis 会建立 `prototype/manifest.json`，并在 PRD“用户可见结果”管理块中展示主入口、静态预览、状态和摘要。`task.py prototype-status <task>` 同时报告 manifest 批准与 PRD 引用是否一致。用户查看最新原型后，`task.py approve-prototype <task> <approval-evidence>` 把批准绑定到摘要并同步 PRD。原型缺失、待批准、摘要过期、路径越界或 PRD 引用不一致时，`task.py start` 会在改变 Task 状态、活动指针或生命周期 hook 前拒绝启动。
+
 ## 活动任务
 
 用户看到“当前 task”，但 Trellis 存储每个会话的活动 task 状态。
@@ -107,6 +119,11 @@ AI 不应把阶段编号当作 task 状态。task 进度主要由 `status`、产
 
 ```bash
 python3 ./.trellis/scripts/task.py create "<title>" --slug <slug>
+python3 ./.trellis/scripts/task.py create "<UI title>" --slug <slug> --meta ui=true
+python3 ./.trellis/scripts/task.py set-planning-profile <task> <七项布尔参数>
+python3 ./.trellis/scripts/task.py planning-status <task>
+python3 ./.trellis/scripts/task.py prototype-status <task>
+python3 ./.trellis/scripts/task.py approve-prototype <task> "<approval-evidence>"
 python3 ./.trellis/scripts/task.py start <task>
 python3 ./.trellis/scripts/task.py current --source
 python3 ./.trellis/scripts/task.py add-context <task> implement <file> <reason>
@@ -122,6 +139,7 @@ python3 ./.trellis/scripts/task.py archive <task>
 | 需要 | 编辑位置 |
 | --- | --- |
 | 更改默认的 task 模板 | `.trellis/scripts/common/task_store.py` 和 task 创建说明。 |
+| 更改层级、PRD、交互或数据库设计门禁 | `.trellis/scripts/common/planning_gate.py`、`task.py` 和 PRD 合同。 |
 | 更改状态语义 | `.trellis/workflow.md`、workflow-状态 hook 逻辑和 task 使用约定。 |
 | 添加 task 生命周期操作 | `hooks.after_*` 在 `.trellis/config.yaml` 中。 |
 | 更改上下文规则 | `.trellis/workflow.md` 和相关平台 agent/hook 指令中的规划产物指南。 |
