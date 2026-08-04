@@ -73,9 +73,15 @@ python3 ./.trellis/scripts/task.py remove-subtask <parent-dir> <child-dir>
 
 The AI should not treat phase numbers as task status. Task progress is mainly determined by `status`, artifact presence (`prd.md`, optional `design.md` / `implement.md`), whether JSONL context is configured for sub-agent mode, and the phase descriptions in `workflow.md`.
 
-## PRD contract
+## Planning and PRD Contract
 
-New task PRDs are human-readable contracts with `Goal`, `Requirements`, and `User-visible Outcomes` in that order. Goals are ordered lists and outcomes are checklists. Technical design belongs in `design.md`, ordered execution in `implement.md`, and source evidence in `research/`. For UI tasks, a pending prototype approval blocks `task.py start`.
+Standard tasks created by `task.py create` use planning contract v2. The seven boolean profile answers are the only tier inputs: all `false` derives `lightweight`; any `true` derives `complex`; unresolved answers derive `pending` and block `task.py start`. Historical tasks without `meta.planning_contract_version=2` keep the legacy path.
+
+PRDs keep `Goal`, `Requirements`, and `User-visible Outcomes` in that order. Goals are ordered lists. Requirements are grouped only by change types that actually occur (`Add`, `Change`, `Remove`, `Preserve`, `Boundary`) and use stable `R1` / `R1.1` IDs. Checklist outcomes use `O1` IDs and map back to requirement IDs. Technical design belongs in `design.md`, ordered execution in `implement.md`, and source evidence in `research/`.
+
+When `interaction_change=true`, User-visible Outcomes also needs a Mermaid interaction-change diagram with Add/Change/Remove text plus a red `changed` node/path. When `data_model_change=true`, `design.md` needs executable DDL, table and every-field comments, constraints, migration, and rollback. An ER diagram remains optional.
+
+Create UI tasks with `--meta ui=true`. Trellis adds `prototype/manifest.json` beside `research/`; the manifest points to a main entry and static preview under `prototype/`, while the PRD managed block exposes entry, preview, status, and digest inside User-visible Outcomes. Use `task.py prototype-status <task>` to inspect both manifest approval and PRD-reference consistency. After user review, `task.py approve-prototype <task> <approval-evidence>` binds approval to the digest and synchronizes the PRD block. `task.py start` rejects missing, pending, stale, out-of-directory, or PRD-inconsistent prototypes before changing task status, the active pointer, or lifecycle hooks.
 
 ## Active Task
 
@@ -111,6 +117,11 @@ Rules:
 
 ```bash
 python3 ./.trellis/scripts/task.py create "<title>" --slug <slug>
+python3 ./.trellis/scripts/task.py create "<UI title>" --slug <slug> --meta ui=true
+python3 ./.trellis/scripts/task.py set-planning-profile <task> <seven boolean flags>
+python3 ./.trellis/scripts/task.py planning-status <task>
+python3 ./.trellis/scripts/task.py prototype-status <task>
+python3 ./.trellis/scripts/task.py approve-prototype <task> "<approval-evidence>"
 python3 ./.trellis/scripts/task.py start <task>
 python3 ./.trellis/scripts/task.py current --source
 python3 ./.trellis/scripts/task.py add-context <task> implement <file> <reason>
@@ -126,6 +137,7 @@ When modifying the task system, the AI should prefer script commands to maintain
 | Need | Edit location |
 | --- | --- |
 | Change the default task template | `.trellis/scripts/common/task_store.py` and task creation instructions. |
+| Change tier, PRD, interaction, or database design gates | `.trellis/scripts/common/planning_gate.py`, `task.py`, and the PRD contract. |
 | Change status semantics | `.trellis/workflow.md`, workflow-state hook logic, and task usage conventions. |
 | Add task lifecycle actions | `hooks.after_*` in `.trellis/config.yaml`. |
 | Change context rules | Planning artifact guidance in `.trellis/workflow.md` and related platform agent/hook instructions. |

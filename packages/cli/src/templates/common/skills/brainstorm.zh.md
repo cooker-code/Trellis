@@ -130,9 +130,9 @@ TASK_DIR=$({{PYTHON_CMD}} ./.trellis/scripts/task.py create "<short task title>"
 - 阻塞性待确认问题为空
 - 技术未知项已调研，或已明确延后且不会改变最小可行产品行为
 
-轻量 Task 可以省略 `design.md` 和 `implement.md`；但不能跳过证据检查、需求收敛、最终审查或新的实现批准。
+推导为 `lightweight` 的 Task 可以省略 `design.md` 和 `implement.md`；推导为 `complex` 的 Task 必须具备两者；`pending` 画像不能 `start`。任何层级都不能跳过证据检查、需求收敛、最终审查或新的实现批准。
 
-最终规划摘要必须展示目标、需求、用户可见结果、关键决策、相关风险或延期事项和产物状态。用户界面 Task 还必须展示 `prototype status: pending_user_approval` 或 `approved`；最新原型未经用户明确确认前，不得运行 `task.py start`。
+最终规划摘要必须展示目标、编号需求、映射后的用户可见结果、七项规划画像、推导层级、关键决策、相关风险或延期事项和产物状态。使用 `task.py set-planning-profile` 一次保存完整画像，不得仅凭自由判断认定轻量/复杂。创建用户界面 Task 时使用 `--meta ui=true`；“用户可见结果”必须保留原型入口、预览、状态和摘要管理块。展示最新原型后，用 `task.py approve-prototype <task> <approval-evidence>` 记录批准，并报告包含 PRD 一致性的 `prototype-status`。
 
 ## 产物规则
 
@@ -142,7 +142,7 @@ TASK_DIR=$({{PYTHON_CMD}} ./.trellis/scripts/task.py create "<short task title>"
 - `Requirements`（需求）— 描述用户/产品行为和用户可理解的产品阶段
 - `User-visible Outcomes`（用户可见结果）— 使用可核验检查清单说明用户能看到什么以及如何判断成功
 
-背景、范围或流程图仅在确实提升理解时使用。已确认事实只是临时探索分类，不能成为最终 PRD 章节。技术设计进入 `design.md`；有序执行和验证命令进入 `implement.md`；源码诊断和 `file:line` 证据进入 `research/`。
+背景、范围或流程图仅在确实提升理解时使用。`Confirmed Facts`（已确认事实）只是临时探索分类，不能成为最终 PRD 章节。技术设计进入 `design.md`；有序执行和验证命令进入 `implement.md`；源码诊断和 `file:line` 证据进入 `research/`。
 
 复杂 Task 的 `design.md` 记录技术设计：
 
@@ -159,7 +159,7 @@ TASK_DIR=$({{PYTHON_CMD}} ./.trellis/scripts/task.py create "<short task title>"
 - 风险文件或回滚点
 - 运行 `task.py start` 前的后续检查
 
-轻量 Task 可以只有 `prd.md`。复杂 Task 必须在 `task.py start` 前具备 `prd.md`、`design.md` 和 `implement.md`。
+推导为 `lightweight` 的 Task 可以只有 `prd.md`。推导为 `complex` 的 Task 必须在 `task.py start` 前具备 `prd.md`、`design.md` 和 `implement.md`；`pending` Task 不能 `start`。
 
 `implement.md` 不能替代 `implement.jsonl`。在派发 Sub-agent 的 workflow 中，`implement.jsonl` 和 `check.jsonl` 必须各自在 `task.py start` 前包含至少一条真实的 Spec/调研记录；种子 `_example` 行不计入。内联 workflow 跳过此 JSONL 门禁，因为 Phase 2 通过 `trellis-before-dev` 加载上下文。
 
@@ -220,17 +220,21 @@ flowchart LR
 <!-- prd-contract:START -->
 ## PRD 合同
 
-最终 `prd.md` 的固定章节依次为 目标（`Goal`）、需求（`Requirements`）和 用户可见结果（`User-visible Outcomes`）。目标使用有序列表，用户可见结果使用检查清单。技术设计进入 `design.md`；有序执行进入 `implement.md`；源码诊断进入 `research/`。
+最终 `prd.md` 的固定章节依次为 目标（`Goal`）、需求（`Requirements`）和 用户可见结果（`User-visible Outcomes`）。目标使用有序列表；需求按实际变更类型使用 `R1/R1.1` 编号；用户可见结果使用 `O1` 检查清单并映射需求编号。技术设计进入 `design.md`；有序执行进入 `implement.md`；源码诊断进入 `research/`。
 
-用户界面工作必须在用户可见结果中包含原型，并在用户明确确认前报告 `prototype status: pending_user_approval`；待确认时不得运行 `task.py start`。
+使用 `task.py set-planning-profile <task> ...` 一次回答七项画像：全部为 `false` 推导为 `lightweight`，任一为 `true` 推导为 `complex`，未决则为 `pending` 并禁止 `start`。复杂 Task 必须有 `design.md` 和 `implement.md`。
 
-仅当流程图确实提升理解时才使用。 关键路径必须有明确标签、`classDef critical`、`class ... critical` 和红色 `linkStyle`（`stroke:#dc2626`）；不能只依赖颜色。
+用户界面工作使用 `--meta ui=true` 和标准 `prototype/manifest.json`；PRD 的“用户可见结果”必须展示原型入口、预览、状态和摘要。使用 `task.py prototype-status <task>` 查看当前状态，用户查看最新原型后运行 `task.py approve-prototype <task> <approval-evidence>` 记录批准并同步 PRD；`task.py start` 执行硬门禁。
+
+流程图通常可选；仅当 `interaction_change=true` 时必须放在“用户可见结果”中，并用“新增/修改/删除”文字、`classDef changed` 和红色 `linkStyle`（`stroke:#dc2626`）突出变化流程。
+
+当 `data_model_change=true` 时，`design.md` 必须包含数据模型、正式 `DDL`、表与全部字段备注、约束、迁移和回滚；`ER` 图可选。
 
 ```mermaid
 flowchart LR
-  A["关键入口"] --> B["关键处理"] --> C["关键结果"]
-  classDef critical fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:2px;
-  class A,B,C critical;
-  linkStyle 0,1 stroke:#dc2626,stroke-width:3px;
+  A["原有入口"] --> B["修改：确认步骤"] --> C["原有结果"]
+  classDef changed fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:2px;
+  class B changed;
+  linkStyle 0 stroke:#dc2626,stroke-width:3px;
 ```
 <!-- prd-contract:END -->

@@ -1,0 +1,4 @@
+{"file":".trellis/spec/cli/backend/workflow-state-contract.md","reason":"Defines status writers, start transition, and lifecycle hook ordering that the hard gate must preserve"}
+{"file":"packages/cli/src/templates/common/bundled-skills/trellis-meta/references/local-architecture/task-system.md","reason":"Defines the shipped task directory and artifact model that must gain the prototype contract"}
+{"file":".trellis/tasks/archive/2026-07/07-29-unify-prd-human-readable-contract/design.md","reason":"Preserves the existing UI approval planning rule and its compatibility boundary while adding runtime enforcement"}
+{"file":".trellis/tasks/08-01-ui-prototype-directory-start-gate/research/current-state.md","reason":"Captures current soft-gate behavior, missing prototype directory, runtime gap, and affected tests"}

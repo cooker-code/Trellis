@@ -1,11 +1,70 @@
 {
-  "version": 1,
-  "locales": {"en": {"goal": "Goal", "requirements": "Requirements", "userVisibleOutcomes": "User-visible Outcomes"}, "zh": {"goal": "目标", "requirements": "需求", "userVisibleOutcomes": "用户可见结果"}},
+  "version": 2,
+  "locales": {
+    "en": {"goal": "Goal", "requirements": "Requirements", "userVisibleOutcomes": "User-visible Outcomes"},
+    "zh": {"goal": "目标", "requirements": "需求", "userVisibleOutcomes": "用户可见结果"}
+  },
   "fixedOrder": ["goal", "requirements", "userVisibleOutcomes"],
   "goalListStyle": "ordered",
   "outcomeListStyle": "checklist",
-  "optionalHumanSections": ["background", "scope", "mermaid"],
+  "requirements": {
+    "groupIds": "R1, R2, ...",
+    "itemIds": "R1.1, R1.2, ...",
+    "changeTypes": {
+      "en": ["Add", "Change", "Remove", "Preserve", "Boundary"],
+      "zh": ["新增", "修改", "删除", "保持不变", "边界"]
+    },
+    "emptyGroupsAllowed": false
+  },
+  "outcomes": {"ids": "O1, O2, ...", "requirementMappingRequired": true},
+  "planningProfile": {
+    "versionField": "planning_contract_version",
+    "version": "2",
+    "tierField": "planning_tier",
+    "tiers": ["pending", "lightweight", "complex"],
+    "complexityTriggers": [
+      "interaction_change",
+      "data_model_change",
+      "public_contract_change",
+      "cross_layer_change",
+      "state_lifecycle_change",
+      "security_compatibility_rollout_change",
+      "technical_tradeoff"
+    ],
+    "allFalseTier": "lightweight",
+    "anyTrueTier": "complex",
+    "unknownTier": "pending",
+    "legacyTasksBlocked": false
+  },
   "uiPrototypeApprovalRequired": true,
-  "technicalDetailTargets": {"design": ["technical requirements", "algorithms", "data contracts", "compatibility", "rollout", "rollback"], "implement": ["ordered checklist", "commands", "test execution"], "research": ["source diagnosis", "file:line evidence", "investigation facts"]},
-  "mermaidCriticalPath": {"requiredClass": "critical", "requiredLinkStyle": "stroke:#dc2626", "textLabelRequired": true}
+  "uiPrototype": {
+    "directory": "prototype/",
+    "manifest": "prototype/manifest.json",
+    "statuses": ["pending_user_approval", "approved"],
+    "approvalBoundToDigest": true,
+    "startGateRequired": true,
+    "prdManagedBlock": ["entry", "preview", "status", "digest"],
+    "prdSection": "userVisibleOutcomes"
+  },
+  "interactionDiagram": {
+    "requiredWhen": "interaction_change=true",
+    "prdSection": "userVisibleOutcomes",
+    "requiredClass": "changed",
+    "requiredLinkStyle": "stroke:#dc2626",
+    "requiredTextLabels": {"en": ["Add", "Change", "Remove"], "zh": ["新增", "修改", "删除"]}
+  },
+  "databaseDesign": {
+    "requiredWhen": "data_model_change=true",
+    "artifact": "design.md",
+    "requiredSections": ["Data Model", "DDL", "Table and Field Descriptions", "Migration and Rollback"],
+    "tableCommentsRequired": true,
+    "fieldCommentsRequired": true,
+    "erDiagramRequired": false
+  },
+  "optionalHumanSections": ["background", "scope", "mermaid"],
+  "technicalDetailTargets": {
+    "design": ["technical requirements", "algorithms", "data contracts", "compatibility", "rollout", "rollback"],
+    "implement": ["ordered checklist", "commands", "test execution"],
+    "research": ["source diagnosis", "file:line evidence", "investigation facts"]
+  }
 }

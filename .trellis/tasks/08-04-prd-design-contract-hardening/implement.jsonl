@@ -1,0 +1,3 @@
+{"file":".trellis/spec/cli/backend/workflow-state-contract.md","reason":"start 状态写入、生命周期副作用顺序与 planning/in_progress 合同"}
+{"file":".trellis/tasks/08-04-prd-design-contract-hardening/research/current-state.md","reason":"prototype 前置能力、PRD 合同、轻量/复杂分类和数据库设计现状证据"}
+{"file":".trellis/tasks/08-01-ui-prototype-directory-start-gate/design.md","reason":"复用已实现的 prototype manifest、摘要批准和 start 前门禁设计"}

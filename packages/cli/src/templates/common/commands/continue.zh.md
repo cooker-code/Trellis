@@ -25,9 +25,9 @@
 `get_context.py` 会显示当前 Task 的 `status` 字段。根据 `status` + 产物是否存在进行路由。此命令用于避免用户记忆 Trellis 流程；它本身不批准实现。
 
 - `status=planning` + 没有 `prd.md` → **1.1**（加载 `trellis-brainstorm`）
-- `status=planning` + 只有 `prd.md` → 判断 task 是轻量还是复杂。轻量 Task 可以进入 **1.4** 审查；复杂 Task 返回 **1.1**，补充 `design.md` + `implement.md`。
+- `status=planning` + 已有 `prd.md` → 运行 `task.py planning-status <task>`。画像为 `pending` 时返回 **1.1**；推导为 `lightweight` 时可以进入 **1.4** 审查；推导为 `complex` 时返回 **1.1**，直到补齐 `design.md` + `implement.md`。
 - `status=planning` + 复杂产物已完成 + sub-agent JSONL 尚未整理（只有种子 `_example` 记录）→ **1.3**
-- `status=planning` + 必需产物已完成 + 必需 JSONL 已整理或使用行内模式 → **1.4**（请求启动审查；仅在用户确认后运行 `task.py start`）
+- `status=planning` + `planning-status` 有效 + 必需 JSONL 已整理或使用行内模式 → **1.4**（请求启动审查）。对于 `meta.ui=true`，还必须完成 `prototype/manifest.json` 声明的主入口和预览，用 `task.py prototype-status <task>` 读取入口、当前摘要和状态，展示最新原型，并用 `task.py approve-prototype <task> <approval-evidence>` 记录用户确认后，才能运行 `task.py start`。
 - `status=in_progress` + 尚未开始实现 → **2.1**
 - `status=in_progress` + 实现完成但尚未检查 → **2.2**
 - `status=in_progress` + 检查已通过 → **3.1**
@@ -36,7 +36,7 @@
 Phase 规则（完整详情见 `.trellis/workflow.md`）：
 
 1. 在一个 Phase 内按顺序执行步骤——不得跳过 `[required]` 步骤
-2. 如果必需输出已经存在，则 `[once]` 步骤视为已完成。只有轻量 Task 才可能只需要 `prd.md`；复杂 Task 还需要 `design.md` 和 `implement.md`。
+2. 如果必需输出已经存在，则 `[once]` 步骤视为已完成。层级必须由已持久化画像推导，不能自由判断：`lightweight` 可以只有 `prd.md`；`complex` 还需要 `design.md` 和 `implement.md`；`pending` 不能启动。
 3. 如果新发现要求回退，可以返回更早的 Phase
 
 ## Step 4：加载具体步骤

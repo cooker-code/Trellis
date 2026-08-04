@@ -237,11 +237,13 @@ describe("distributed Python i18n", () => {
 
 ## 需求
 
-- 待补充
+### R1 新增
+
+- **R1.1 首项改动**：待补充。
 
 ## 用户可见结果
 
-- [ ] 待补充
+- [ ] **O1（R1.1）** 待补充。
 `);
   });
 
@@ -267,6 +269,41 @@ describe("distributed Python i18n", () => {
     expect(created.status).toBe(0);
     const taskPath = created.stdout.trim();
     expect(taskPath).toMatch(/^\.trellis\/tasks\/\d{2}-\d{2}-hook-lifecycle$/);
+
+    writeProjectFile(
+      `${taskPath}/prd.md`,
+      `# Hook lifecycle
+
+## Goal
+
+1. Verify lifecycle hooks.
+
+## Requirements
+
+### R1 Preserve
+
+- **R1.1 Lifecycle hooks**: preserve hook behavior.
+
+## User-visible Outcomes
+
+- [ ] **O1 (R1.1)** Lifecycle hooks run once.
+`,
+    );
+    const profiled = runScript(
+      "task.py",
+      [
+        "set-planning-profile", taskPath,
+        "--interaction-change", "false",
+        "--data-model-change", "false",
+        "--public-contract-change", "false",
+        "--cross-layer-change", "false",
+        "--state-lifecycle-change", "false",
+        "--security-compatibility-rollout-change", "false",
+        "--technical-tradeoff", "false",
+      ],
+      env,
+    );
+    expect(profiled.status).toBe(0);
 
     const started = runScript("task.py", ["start", taskPath], env);
     expect(started.status).toBe(0);

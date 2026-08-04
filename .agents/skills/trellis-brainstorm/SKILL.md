@@ -135,20 +135,19 @@ Before final review, verify all of the following:
 - blocking open questions are empty
 - technical unknowns are researched or explicitly deferred without changing MVP behavior
 
-Lightweight tasks may omit `design.md` and `implement.md`; they may not skip evidence inspection, requirement convergence, final review, or fresh implementation approval.
+Tasks derived as `lightweight` may omit `design.md` and `implement.md`; tasks derived as `complex` require both. A `pending` profile cannot start. No tier may skip evidence inspection, requirement convergence, final review, or fresh implementation approval.
 
-The final planning summary must show Goal, In Scope, Out of Scope, Acceptance Criteria, Key Decisions, relevant Risks or Deferred Items, and artifact status.
+The final planning summary must show Goal, numbered Requirements, mapped User-visible Outcomes, all seven planning-profile answers, the derived tier, Key Decisions, relevant Risks or Deferred Items, and artifact status. Save the complete profile with `task.py set-planning-profile`; never classify lightweight/complex from free-form judgment alone. UI tasks must retain the managed prototype entry, preview, status, and digest block in User-visible Outcomes.
 
 ## Artifact Rules
 
-`prd.md` records requirements and acceptance:
+`prd.md` is a human-readable product contract with exactly these fixed core sections in order:
 
-- goal and user value
-- confirmed facts
-- requirements
-- acceptance criteria
-- out of scope
-- open questions that still block planning
+- `Goal` — an ordered list of user outcomes and value
+- `Requirements` — actual Add/Change/Remove/Preserve/Boundary groups with stable `R1` / `R1.1` IDs
+- `User-visible Outcomes` — `O1` checklist items mapped to requirement IDs
+
+Optional Background, Scope, or Mermaid material is included only when it improves understanding. Technical design belongs in `design.md`; ordered execution belongs in `implement.md`; evidence belongs in `research/`.
 
 `design.md` records technical design for complex tasks:
 
@@ -165,7 +164,7 @@ The final planning summary must show Goal, In Scope, Out of Scope, Acceptance Cr
 - risky files or rollback points
 - follow-up checks before `task.py start`
 
-Lightweight tasks may have only `prd.md`. Complex tasks must have `prd.md`, `design.md`, and `implement.md` before `task.py start`.
+Tasks derived as `lightweight` may have only `prd.md`. Tasks derived as `complex` must have `prd.md`, `design.md`, and `implement.md` before `task.py start`; `pending` tasks cannot start.
 
 `implement.md` is not a replacement for `implement.jsonl`. On sub-agent-dispatch workflows, `implement.jsonl` and `check.jsonl` must each contain at least one real spec/research entry before `task.py start`; the seed `_example` row does not count. Inline workflows skip this JSONL gate because Phase 2 loads context through `trellis-before-dev`.
 
@@ -176,7 +175,7 @@ Before declaring planning ready or running `task.py start`, rewrite `prd.md` onc
 The pass must be lossless:
 
 - Collapse repeated facts into one authoritative section.
-- Fold temporary brainstorm sections such as `What I already know`, `Assumptions`, and resolved `Open Questions` into Goal, Background, Requirements, Technical Notes, or Acceptance Criteria.
+- Fold temporary brainstorm sections such as `What I already know`, `Assumptions`, and resolved `Open Questions` into Goal, Background, Requirements, or User-visible Outcomes. Move technical notes to `design.md` and evidence to `research/`.
 - Remove resolved open questions instead of leaving empty or already-answered sections.
 - Merge parallel bug and requirement lists when they describe the same work; keep each defect's severity, evidence, and file:line anchors on the owning requirement.
 - Preserve every file:line anchor, decision, constraint, requirement ID, and acceptance-criteria mapping.
@@ -188,13 +187,35 @@ After the pass, read `prd.md` top to bottom and verify that no fact is repeated 
 
 Before declaring planning ready:
 
-- `prd.md` contains testable acceptance criteria.
+- `prd.md` contains numbered change-type Requirements and mapped, testable User-visible Outcomes.
 - `prd.md` has passed the PRD convergence pass: no unresolved temporary brainstorm sections, no duplicate facts across sections, and no lost anchors, decisions, or acceptance mappings.
 - Repository-answerable questions have already been answered through inspection.
 - Blocking open questions are empty.
-- Complex tasks have `design.md` and `implement.md`.
+- The persisted planning profile is complete; derived complex tasks have `design.md` and `implement.md`.
 - Sub-agent-dispatch tasks have real curated entries in both `implement.jsonl` and `check.jsonl`; seed-only manifests are not ready.
 - The latest final planning summary has been presented to the user.
 - In a subsequent message, the user explicitly approved that summary for implementation.
 
 Do not start implementation merely because the user originally asked for implementation.
+
+<!-- prd-contract:START -->
+## PRD Contract
+
+Final `prd.md` sections are `Goal`, `Requirements`, and `User-visible Outcomes` in that order. Goals are ordered lists; Requirements use actual change-type groups with `R1/R1.1` IDs; User-visible Outcomes use `O1` checklists mapped to requirement IDs. Technical design (technical requirements, algorithms, data contracts, compatibility, rollout, rollback) belongs in `design.md`; ordered execution (ordered checklist, commands, test execution) belongs in `implement.md`; source diagnosis (source diagnosis, file:line evidence, investigation facts) belongs in `research/`.
+
+Use `task.py set-planning-profile <task> ...` to answer all seven profile questions at once: all `false` derives `lightweight`, any `true` derives `complex`, and unresolved answers derive `pending` and block `start`. Complex tasks require `design.md` and `implement.md`.
+
+UI work uses `--meta ui=true` and the standard `prototype/manifest.json`; User-visible Outcomes must show the prototype entry, preview, status, and digest. Inspect current state with `task.py prototype-status <task>`, then record approval and synchronize the PRD with `task.py approve-prototype <task> <approval-evidence>`; `task.py start` is a hard gate.
+
+Diagrams are normally optional. When `interaction_change=true`, put one in User-visible Outcomes and identify the changed flow with Add/Change/Remove text, `classDef changed`, and red `linkStyle` (`stroke:#dc2626`).
+
+When `data_model_change=true`, `design.md` must include the data model, executable `DDL`, table and every-field comments, constraints, migration, and rollback; an `ER` diagram is optional.
+
+```mermaid
+flowchart LR
+  A["Existing entry"] --> B["Change: confirmation step"] --> C["Existing result"]
+  classDef changed fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:2px;
+  class B changed;
+  linkStyle 0 stroke:#dc2626,stroke-width:3px;
+```
+<!-- prd-contract:END -->
