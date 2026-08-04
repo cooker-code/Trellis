@@ -24,7 +24,7 @@
 
 - [x] 更新 PRD contract 和 checker，明确 `prototype/`、机器可读状态、最新原型批准和 start 硬门禁。
 - [x] 同步英文/中文 Workflow、Brainstorm、Continue、Task System reference 及所有生成镜像。
-- [x] 更新 docs-site/Marketplace 的既有合同镜像；遵守父仓库独立合并边界，不等待外部 PR。
+- [x] 父仓库仅同步发布模板与 `.trellis/` dogfood；本次 docs-site/Marketplace 增量已撤回，外部仓库不再参与父仓库提交门禁。
 - [x] 确认 `trellis init` / `trellis update` 对 pristine（未修改）文件正常更新，对用户已修改文件维持冲突保护。
 
 ## 5. 测试

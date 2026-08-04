@@ -132,37 +132,18 @@ describe("trellis template constants", () => {
     expect(workflowMdTemplate).toContain("#");
   });
 
-  it("marketplace native workflow mirror matches the bundled workflow", () => {
-    const repoRoot = fs.existsSync(path.join(process.cwd(), "marketplace"))
+  it("dogfood workflow keeps the bundled PRD contract block", () => {
+    const repoRoot = fs.existsSync(path.join(process.cwd(), ".trellis"))
       ? process.cwd()
       : path.resolve(process.cwd(), "../..");
-    const marketplaceNative = fs.readFileSync(
-      path.join(repoRoot, "marketplace/workflows/native/workflow.md"),
+    const dogfoodWorkflow = fs.readFileSync(
+      path.join(repoRoot, ".trellis/workflow.md"),
       "utf-8",
     );
-    expect(marketplaceNative).toBe(workflowMdTemplate);
-  });
-
-  it("marketplace TDD workflow planning breadcrumbs include behavior gates", () => {
-    const repoRoot = fs.existsSync(path.join(process.cwd(), "marketplace"))
-      ? process.cwd()
-      : path.resolve(process.cwd(), "../..");
-    const tddWorkflow = fs.readFileSync(
-      path.join(repoRoot, "marketplace/workflows/tdd/workflow.md"),
-      "utf-8",
+    const contractPattern = /<!-- prd-contract:START -->[\s\S]*?<!-- prd-contract:END -->/;
+    expect(dogfoodWorkflow.match(contractPattern)?.[0]).toBe(
+      workflowMdTemplate.match(contractPattern)?.[0],
     );
-    const planning = /\[workflow-state:planning\]([\s\S]*?)\[\/workflow-state:planning\]/.exec(
-      tddWorkflow,
-    )?.[1];
-    const planningInline = /\[workflow-state:planning-inline\]([\s\S]*?)\[\/workflow-state:planning-inline\]/.exec(
-      tddWorkflow,
-    )?.[1];
-
-    for (const block of [planning, planningInline]) {
-      expect(block).toContain("observable behavior slices");
-      expect(block).toContain("public interface under test");
-      expect(block).toContain("mock boundaries");
-    }
   });
 
   it("[codex-native-subagents] workflow.md preserves the dispatch prompt for Codex native fallback", () => {

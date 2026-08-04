@@ -11,7 +11,7 @@ const temporaryRoots: string[] = [];
 function copyContractFixture(): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "trellis-prd-contract-"));
   temporaryRoots.push(root);
-  for (const source of ["packages", ".trellis", "marketplace", "docs-site"]) {
+  for (const source of ["packages", ".trellis"]) {
     fs.cpSync(path.join(repoRoot, source), path.join(root, source), {
       recursive: true,
       filter: (name) => !name.includes("node_modules") && !name.includes("dist"),
@@ -59,7 +59,7 @@ describe("PRD contract checker", () => {
     ["mapped outcomes", "packages/cli/src/templates/trellis/scripts/common/task_store.py", "**O1 (R1.1)**", "**O1**"],
     ["Mermaid changed class", "packages/cli/src/templates/common/skills/brainstorm.md", "classDef changed", "classDef emphasis"],
     ["Mermaid red link", "packages/cli/src/templates/common/skills/brainstorm.md", "linkStyle 0 stroke:#dc2626", "linkStyle 0 stroke:#000000"],
-    ["legacy marketplace PRD definition", "marketplace/workflows/tdd/workflow.md", "Goals are ordered lists", "requirements, constraints, and acceptance criteria"],
+    ["legacy root PRD definition", ".trellis/workflow.md", "Goals are ordered lists", "requirements, constraints, and acceptance criteria"],
   ])("rejects %s drift", (_name, relativePath, from, to) => {
     expectRejected(copyContractFixture(), relativePath, from, to);
   });

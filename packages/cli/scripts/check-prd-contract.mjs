@@ -70,9 +70,6 @@ const targets = [
   ["packages/cli/src/templates/trellis/workflow.md", "workflow", "en"],
   [".trellis/workflow.md", "workflow", "en"],
   ["packages/cli/src/templates/trellis/workflow.zh.md", "workflow", "zh"],
-  ["marketplace/workflows/native/workflow.md", "workflow", "en"],
-  ["marketplace/workflows/tdd/workflow.md", "workflow", "en"],
-  ["marketplace/workflows/channel-driven-subagent-dispatch/workflow.md", "workflow", "en"],
   ["packages/cli/src/templates/common/skills/brainstorm.md", "brainstorm", "en"],
   ["packages/cli/src/templates/common/skills/brainstorm.zh.md", "brainstorm", "zh"],
 ];
@@ -84,11 +81,6 @@ const legacyScanTargets = [
   "packages/cli/src/templates/common/bundled-skills/trellis-meta/references/local-architecture/task-system.md",
   "packages/cli/src/templates/common/bundled-skills/trellis-meta/references/local-architecture/task-system.zh.md",
   ".trellis/spec/cli/backend/platform-integration.md",
-  "docs-site/guides/tasks.mdx", "docs-site/zh/guides/tasks.mdx",
-  "docs-site/start/how-it-works.mdx", "docs-site/zh/start/how-it-works.mdx",
-  "docs-site/start/everyday-use.mdx", "docs-site/zh/start/everyday-use.mdx",
-  "docs-site/advanced/architecture.mdx", "docs-site/zh/advanced/architecture.mdx",
-  "docs-site/start/real-world-scenarios.mdx", "docs-site/zh/start/real-world-scenarios.mdx",
 ];
 
 function syncTarget(relativePath, kind, locale) {
