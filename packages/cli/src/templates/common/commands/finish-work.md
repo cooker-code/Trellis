@@ -42,7 +42,23 @@ Then route:
   > "FYI, dirty files outside this task's scope — leaving them for the other window: `<list>`."
 - **Genuinely unsure** — ask the user once: "Are `<list>` this task's work I forgot to commit, or another window's? (commit / ignore)" — then route per their answer.
 
-## Step 3: Archive task(s)
+## Step 3: Verify delivery, then archive task(s)
+
+Before any archive, run the read-only receipt for every Task selected in Step 1:
+
+```bash
+{{PYTHON_CMD}} ./.trellis/scripts/task.py delivery-status <task-name> --json
+```
+
+- `uncommitted` stops this skill. Show the receipt's worktree path and feature branch, then return to Phase 3.4.
+- `integration_pending` asks exactly once: local merge, PR/MR, or retain. The default is no Git write, Push, or cleanup. Run `deliver <task> --mode local-merge --authorize`, create the PR/MR explicitly, or run `deliver <task> --mode retain --reason "..."`; then re-read `delivery-status --json`.
+- `integration_blocked` stops for conflict or an unsafe worktree. `retained` may archive, but the final receipt must preserve its branch, commit, worktree, and reason.
+- `integrated` or `cleanup_pending` may continue. Worktree removal and branch deletion remain separately authorized actions; do not force either one here.
+- `committed` stops until a base branch is recorded or the user explicitly retains the code. `no_code_change` may archive after normal non-code acceptance. `unavailable` may archive only when the receipt shows a historical non-Git/no-code Task; otherwise stop rather than guessing.
+
+The final handoff must state: code location, feature commit, target branch, integration state, remote/PR state, worktree/branch cleanup state, and remaining next action.
+
+## Step 4: Archive task(s)
 
 ```bash
 {{PYTHON_CMD}} ./.trellis/scripts/task.py archive <task-name>
@@ -52,7 +68,7 @@ At minimum: the current active task (if any). Plus any extra tasks the user conf
 
 If there is no active task and the user did not confirm any cleanup archives, skip this step.
 
-## Step 4: Record session journal
+## Step 5: Record session journal
 
 ```bash
 {{PYTHON_CMD}} ./.trellis/scripts/add_session.py \

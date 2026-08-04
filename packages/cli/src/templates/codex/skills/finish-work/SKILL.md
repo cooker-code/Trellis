@@ -47,7 +47,11 @@ Then route:
   > "FYI, dirty files outside this task's scope — leaving them for the other window: `<list>`."
 - **Genuinely unsure** — ask the user once: "Are `<list>` this task's work I forgot to commit, or another window's? (commit / ignore)" — then route per their answer.
 
-## Step 3: Archive task(s)
+## Step 3: Verify delivery, then archive task(s)
+
+Run `python3 ./.trellis/scripts/task.py delivery-status <task-name> --json` before archive. `uncommitted` returns to Phase 3.4 with the receipt's worktree path and feature branch. `integration_pending` asks exactly once for local merge, PR/MR, or retain; default is no Git write, Push, or cleanup. Re-read the receipt after any choice. `integration_blocked` and `committed` stop; `retained`, `integrated`, and `cleanup_pending` may archive. `no_code_change` may archive after non-code acceptance; `unavailable` may do so only for a historical non-Git/no-code Task. Cleanup is separately authorized. Final handoff states code location, feature commit, target branch, integration state, remote/PR state, worktree/branch cleanup state, and remaining next action.
+
+## Step 4: Archive task(s)
 
 ```bash
 python3 ./.trellis/scripts/task.py archive <task-name>
@@ -57,7 +61,7 @@ At minimum: the current active task (if any). Plus any extra tasks the user conf
 
 If there is no active task and the user did not confirm any cleanup archives, skip this step.
 
-## Step 4: Record session journal
+## Step 5: Record session journal
 
 ```bash
 python3 ./.trellis/scripts/add_session.py \

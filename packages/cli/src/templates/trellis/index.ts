@@ -69,6 +69,7 @@ export const commonTrellisConfig = readTemplate(
   "scripts/common/trellis_config.py",
 );
 export const commonSafeCommit = readTemplate("scripts/common/safe_commit.py");
+export const commonDelivery = readTemplate("scripts/common/delivery.py");
 
 // Python scripts - main
 export const getDeveloperScript = readTemplate("scripts/get_developer.py");
@@ -216,6 +217,7 @@ export function getAllScripts(): Map<string, string> {
   scripts.set("common/workflow_phase.py", commonWorkflowPhase);
   scripts.set("common/trellis_config.py", commonTrellisConfig);
   scripts.set("common/safe_commit.py", commonSafeCommit);
+  scripts.set("common/delivery.py", commonDelivery);
   scripts.set("common/i18n.py", commonI18n);
   scripts.set("common/i18n_strings/__init__.py", commonI18nStringsInit);
   scripts.set("common/i18n_strings/en.py", commonI18nStringsEn);

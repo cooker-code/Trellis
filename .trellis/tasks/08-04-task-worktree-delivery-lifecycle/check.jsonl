@@ -1,0 +1,5 @@
+{"file":".trellis/spec/cli/backend/filesystem-safety.md","reason":"审查 worktree/branch 清理、路径约束和破坏性动作授权。"}
+{"file":".trellis/spec/cli/backend/workflow-state-contract.md","reason":"审查 finish/archive/hook 与历史 Task 兼容性。"}
+{"file":".trellis/spec/cli/backend/platform-integration.md","reason":"审查模板、Marketplace 和平台镜像漂移。"}
+{"file":".trellis/spec/cli/unit-test/integration-patterns.md","reason":"审查 Git 生命周期矩阵与回归测试完整性。"}
+{"file":".trellis/tasks/08-04-task-worktree-delivery-lifecycle/research/current-lifecycle-evidence.md","reason":"按当前事实与明确非目标复核实现。"}

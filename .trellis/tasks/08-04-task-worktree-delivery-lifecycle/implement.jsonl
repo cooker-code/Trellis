@@ -1,0 +1,7 @@
+{"file":".trellis/spec/cli/backend/script-conventions.md","reason":"Python CLI 脚本、错误处理、Git 子进程和跨平台约定。"}
+{"file":".trellis/spec/cli/backend/filesystem-safety.md","reason":"worktree 路径、清理和不可恢复操作的安全约束。"}
+{"file":".trellis/spec/cli/backend/workflow-state-contract.md","reason":"Task 状态、active Session 指针和生命周期 hook 兼容合同。"}
+{"file":".trellis/spec/cli/backend/platform-integration.md","reason":"所有平台 finish-work 模板与生成入口同步要求。"}
+{"file":".trellis/spec/cli/unit-test/integration-patterns.md","reason":"CLI 模板和 Git 场景的集成测试模式。"}
+{"file":".trellis/spec/guides/cross-platform-thinking-guide.md","reason":"跨平台命令、路径和提示语义一致性。"}
+{"file":".trellis/tasks/08-04-task-worktree-delivery-lifecycle/research/current-lifecycle-evidence.md","reason":"当前 finish/archive 语义、字段和测试缺口。"}

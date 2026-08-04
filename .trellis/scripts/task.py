@@ -11,6 +11,8 @@ Usage:
     python3 task.py start <dir>                 # Set active task
     python3 task.py current [--source] [--json] # Show active task
     python3 task.py finish                      # Clear active task
+    python3 task.py delivery-status [task] [--json] # Read local delivery receipt
+    python3 task.py deliver <task> --mode local-merge|pr|retain [--authorize] [--reason TEXT] [--json]
     python3 task.py set-branch <dir> <branch>   # Set git branch
     python3 task.py set-base-branch <dir> <branch>  # Set PR target branch
     python3 task.py set-scope <dir> <scope>     # Set scope for PR title
@@ -31,6 +33,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+
+# This script is stamped into user repositories. Avoid creating untracked
+# __pycache__ files merely by inspecting or delivering a Task.
+sys.dont_write_bytecode = True
 
 from common.i18n import set_locale, t
 from common.log import Colors, colored
@@ -85,6 +91,7 @@ from common.task_context import (
     cmd_validate,
     cmd_list_context,
 )
+from common.delivery import cmd_deliver, cmd_delivery_cleanup, cmd_delivery_status
 
 
 # =============================================================================
@@ -647,6 +654,26 @@ def main() -> int:
     # finish
     subparsers.add_parser("finish", help=t("task.arg_finish"))
 
+    # delivery lifecycle. The status command is intentionally read-only; the
+    # write-capable command requires a mode-specific explicit flag/reason.
+    p_delivery_status = subparsers.add_parser(
+        "delivery-status", help="Show the local Git delivery receipt"
+    )
+    p_delivery_status.add_argument("task", nargs="?", help=t("task.arg_dir"))
+    p_delivery_status.add_argument("--json", action="store_true", help=t("task.arg_json"))
+    p_deliver = subparsers.add_parser("deliver", help="Perform an authorized delivery action")
+    p_deliver.add_argument("task", help=t("task.arg_dir"))
+    p_deliver.add_argument("--mode", required=True, choices=("local-merge", "pr", "retain"))
+    p_deliver.add_argument("--authorize", action="store_true", help="Authorize local merge for this invocation")
+    p_deliver.add_argument("--reason", help="Required explicit reason when retaining a branch")
+    p_deliver.add_argument("--json", action="store_true", help=t("task.arg_json"))
+    p_cleanup = subparsers.add_parser("delivery-cleanup", help="Perform explicitly authorized delivery cleanup")
+    p_cleanup.add_argument("task", help=t("task.arg_dir"))
+    p_cleanup.add_argument("--remove-worktree", action="store_true")
+    p_cleanup.add_argument("--delete-branch", action="store_true")
+    p_cleanup.add_argument("--authorize", action="store_true")
+    p_cleanup.add_argument("--json", action="store_true", help=t("task.arg_json"))
+
     # set-branch
     p_branch = subparsers.add_parser("set-branch", help=t("task.arg_set_branch"))
     p_branch.add_argument("dir", help=t("task.arg_dir"))
@@ -740,6 +767,9 @@ def main() -> int:
         "start": cmd_start,
         "current": cmd_current,
         "finish": cmd_finish,
+        "delivery-status": cmd_delivery_status,
+        "deliver": cmd_deliver,
+        "delivery-cleanup": cmd_delivery_cleanup,
         "set-branch": cmd_set_branch,
         "set-base-branch": cmd_set_base_branch,
         "set-scope": cmd_set_scope,

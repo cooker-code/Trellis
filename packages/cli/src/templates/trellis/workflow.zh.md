@@ -47,6 +47,9 @@ python3 ./.trellis/scripts/task.py create "<title>" [--slug <name>] [--parent <d
 python3 ./.trellis/scripts/task.py start <name>          # 设置 active Task（可用时按 session 隔离）
 python3 ./.trellis/scripts/task.py current --source      # 显示 active Task 及其来源
 python3 ./.trellis/scripts/task.py finish                # 清除 active Task（触发 after_finish hook）
+python3 ./.trellis/scripts/task.py delivery-status <name> --json # 只读交付回执
+python3 ./.trellis/scripts/task.py deliver <name> --mode retain --reason "..." # 显式保留回执
+python3 ./.trellis/scripts/task.py delivery-cleanup <name> --remove-worktree|--delete-branch --authorize # 显式清理
 python3 ./.trellis/scripts/task.py archive <name>        # 移动到 archive/{year-month}/
 python3 ./.trellis/scripts/task.py list [--mine] [--status <s>]
 python3 ./.trellis/scripts/task.py list-archive
@@ -73,7 +76,7 @@ python3 ./.trellis/scripts/task.py create-pr [name] [--dry-run]
 
 > 运行 `python3 ./.trellis/scripts/task.py --help` 查看权威且最新的命令列表。
 
-**当前 Task 机制**：`task.py create` 创建 Task 目录，并在 session 身份可用时自动设置该 session 的 active-task 指针，使 planning 面包屑立即生效。`task.py start` 写入同一个指针（若已设置则保持幂等），并把 `task.json.status` 从 `planning` 改为 `in_progress`。状态存储在 `.trellis/.runtime/sessions/` 下。如果无法从 hook 输入、`TRELLIS_CONTEXT_ID` 或平台原生 session 环境变量中获得 context key，就不存在 active Task，且 `task.py start` 会失败并提示如何提供 session 身份。`task.py finish` 删除当前 session 文件（status 不变）。`task.py archive <task>` 写入 `status=completed`，把目录移动到 `archive/`，并删除所有仍指向该已归档 Task 的 runtime session 文件。
+**当前 Task 机制**：`task.py create` 创建 Task 目录，并在 session 身份可用时自动设置该 session 的 active-task 指针，使 planning 面包屑立即生效。`task.py start` 写入同一个指针（若已设置则保持幂等），并把 `task.json.status` 从 `planning` 改为 `in_progress`。状态存储在 `.trellis/.runtime/sessions/` 下。如果无法从 hook 输入、`TRELLIS_CONTEXT_ID` 或平台原生 session 环境变量中获得 context key，就不存在 active Task，且 `task.py start` 会失败并提示如何提供 session 身份。`task.py finish` 只删除当前 session 文件（status 不变）。归档前，`finish-work` 会读取 `delivery-status --json`：未提交工作返回 Phase 3.4；未集成代码要求一次明确的 merge、PR/MR 或 retain 选择；清理始终需要单独授权。`task.py archive <task>` 写入 `status=completed`，把目录移动到 `archive/`，并删除所有仍指向该已归档 Task 的 runtime session 文件。
 
 ### Workspace 系统
 

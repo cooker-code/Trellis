@@ -99,6 +99,58 @@ function runArchive(repo: string, taskName: string): void {
   }
 }
 
+function runTaskJson(repo: string, ...args: string[]): Record<string, unknown> {
+  const r = spawnSync(
+    "python3",
+    [".trellis/scripts/task.py", ...args],
+    { cwd: repo, encoding: "utf-8" },
+  );
+  if (r.status !== 0) {
+    throw new Error(`task.py ${args.join(" ")} failed: ${r.stderr}`);
+  }
+  return JSON.parse(r.stdout) as Record<string, unknown>;
+}
+
+function runTask(repo: string, ...args: string[]): ReturnType<typeof spawnSync> {
+  return spawnSync("python3", [".trellis/scripts/task.py", ...args], {
+    cwd: repo,
+    encoding: "utf-8",
+  });
+}
+
+function blockedReceipt(result: ReturnType<typeof runTask>): Record<string, unknown> {
+  expect(result.status).toBe(1);
+  expect(result.stdout).not.toBe("");
+  return JSON.parse(result.stdout) as Record<string, unknown>;
+}
+
+function setDeliveryTask(
+  repo: string,
+  name: string,
+  branch: string,
+  worktreePath?: string,
+): string {
+  makeTask(repo, name, `# ${name}\n`);
+  const taskPath = path.join(repo, ".trellis", "tasks", name, "task.json");
+  const task = JSON.parse(fs.readFileSync(taskPath, "utf-8")) as Record<string, unknown>;
+  task.branch = branch;
+  task.base_branch = "main";
+  if (worktreePath) task.worktree_path = worktreePath;
+  fs.writeFileSync(taskPath, `${JSON.stringify(task)}\n`);
+  return taskPath;
+}
+
+function addWorktree(
+  repo: string,
+  worktreePath: string,
+  branch: string,
+  createBranch?: string,
+): void {
+  const args = ["worktree", "add", "--quiet"];
+  if (createBranch) args.push("-b", createBranch);
+  git(repo, ...args, worktreePath, branch);
+}
+
 describe.skipIf(!hasPython())(
   "task.py archive auto-commit",
   () => {
@@ -110,6 +162,13 @@ describe.skipIf(!hasPython())(
     });
 
     afterEach(() => {
+      const parent = path.dirname(tmp);
+      const prefix = `${path.basename(tmp)}-worktree-`;
+      for (const entry of fs.readdirSync(parent)) {
+        if (entry.startsWith(prefix)) {
+          fs.rmSync(path.join(parent, entry), { recursive: true, force: true });
+        }
+      }
       fs.rmSync(tmp, { recursive: true, force: true });
     });
 
@@ -260,6 +319,359 @@ describe.skipIf(!hasPython())(
       const status = git(tmp, "status", "--porcelain");
       expect(status).toContain(".trellis/tasks/tracked/");
       expect(status).toContain(".trellis/tasks/archive/");
+    });
+
+    it("reports a versioned delivery receipt without changing a pending feature branch", () => {
+      makeTask(tmp, "delivery", "# delivery\n");
+      const taskPath = path.join(tmp, ".trellis", "tasks", "delivery", "task.json");
+      const task = JSON.parse(fs.readFileSync(taskPath, "utf-8")) as Record<string, unknown>;
+      task.branch = "feature/delivery";
+      task.base_branch = "main";
+      fs.writeFileSync(taskPath, `${JSON.stringify(task)}\n`);
+      git(tmp, "add", "-A");
+      git(tmp, "commit", "-q", "-m", "initial");
+      git(tmp, "checkout", "-q", "-b", "feature/delivery");
+      fs.writeFileSync(path.join(tmp, "feature.txt"), "feature\n");
+      git(tmp, "add", "feature.txt");
+      git(tmp, "commit", "-q", "-m", "feature");
+      const featureTip = git(tmp, "rev-parse", "HEAD");
+      git(tmp, "checkout", "-q", "main");
+
+      const result = runTaskJson(tmp, "delivery-status", "delivery", "--json");
+
+      expect(result.schema_version).toBe("trellis-git-delivery.v1");
+      expect((result.feature as Record<string, unknown>).branch).toBe("feature/delivery");
+      expect((result.feature as Record<string, unknown>).head).toBe(featureTip);
+      expect((result.integration as Record<string, unknown>).state).toBe("integration_pending");
+      expect(result.allowed_modes).toEqual(["local-merge", "pr", "retain"]);
+      expect(git(tmp, "rev-parse", "main")).not.toBe(featureTip);
+    });
+
+    it("records retain as an explicit receipt without modifying Git", () => {
+      makeTask(tmp, "retain", "# retain\n");
+      const taskPath = path.join(tmp, ".trellis", "tasks", "retain", "task.json");
+      const task = JSON.parse(fs.readFileSync(taskPath, "utf-8")) as Record<string, unknown>;
+      task.branch = "feature/retain";
+      task.base_branch = "main";
+      fs.writeFileSync(taskPath, `${JSON.stringify(task)}\n`);
+      git(tmp, "add", "-A");
+      git(tmp, "commit", "-q", "-m", "initial");
+      git(tmp, "checkout", "-q", "-b", "feature/retain");
+      fs.writeFileSync(path.join(tmp, "retain.txt"), "retain\n");
+      git(tmp, "add", "retain.txt");
+      git(tmp, "commit", "-q", "-m", "retain");
+      git(tmp, "checkout", "-q", "main");
+      const before = git(tmp, "rev-parse", "HEAD");
+
+      const result = runTaskJson(tmp, "deliver", "retain", "--mode", "retain", "--reason", "manual review", "--json");
+
+      expect(result.schema_version).toBe("trellis-git-delivery.v1");
+      expect((result.integration as Record<string, unknown>).state).toBe("retained");
+      expect(git(tmp, "rev-parse", "HEAD")).toBe(before);
+      const stored = JSON.parse(fs.readFileSync(taskPath, "utf-8")) as Record<string, unknown>;
+      expect(stored.delivery_retention_reason).toBe("manual review");
+      expect(stored.commit).toBe(git(tmp, "rev-parse", "feature/retain"));
+    });
+
+    it("returns a structured PR refusal on stdout when no remote exists", () => {
+      setDeliveryTask(tmp, "pr-blocked", "feature/pr-blocked");
+      git(tmp, "add", "-A");
+      git(tmp, "commit", "-q", "-m", "initial");
+      git(tmp, "branch", "feature/pr-blocked");
+
+      const result = runTask(tmp, "deliver", "pr-blocked", "--mode", "pr", "--json");
+
+      const receipt = blockedReceipt(result);
+      expect(receipt.operation).toEqual({
+        mode: "pr",
+        state: "blocked",
+        reason: "remote_unavailable",
+      });
+      expect(result.stderr).toBe("");
+    });
+
+    it("returns exactly one local-only JSON receipt for PR dry-run", () => {
+      setDeliveryTask(tmp, "pr-dry-run", "feature/pr-dry-run");
+      git(tmp, "add", "-A");
+      git(tmp, "commit", "-q", "-m", "initial");
+      git(tmp, "checkout", "-q", "-b", "feature/pr-dry-run");
+      fs.writeFileSync(path.join(tmp, "pr.txt"), "pr\n");
+      git(tmp, "add", "pr.txt");
+      git(tmp, "commit", "-q", "-m", "pr feature");
+      git(tmp, "checkout", "-q", "main");
+      git(tmp, "remote", "add", "origin", "https://example.invalid/repo.git");
+      const before = git(tmp, "rev-parse", "HEAD");
+
+      const result = runTask(tmp, "deliver", "pr-dry-run", "--mode", "pr", "--json");
+
+      expect(result.status).toBe(0);
+      const lines = result.stdout.trim().split("\n");
+      expect(lines).toHaveLength(1);
+      const receipt = JSON.parse(lines[0]) as Record<string, unknown>;
+      expect(receipt.schema_version).toBe("trellis-git-delivery.v1");
+      expect(receipt.operation).toEqual({
+        mode: "pr",
+        state: "dry_run",
+        dry_run: true,
+        push: false,
+      });
+      expect(git(tmp, "rev-parse", "HEAD")).toBe(before);
+    });
+
+    it("fast-forwards only after this invocation explicitly authorizes local merge", () => {
+      makeTask(tmp, "merge", "# merge\n");
+      const taskPath = path.join(tmp, ".trellis", "tasks", "merge", "task.json");
+      const task = JSON.parse(fs.readFileSync(taskPath, "utf-8")) as Record<string, unknown>;
+      task.branch = "feature/merge";
+      task.base_branch = "main";
+      fs.writeFileSync(taskPath, `${JSON.stringify(task)}\n`);
+      git(tmp, "add", "-A");
+      git(tmp, "commit", "-q", "-m", "initial");
+      git(tmp, "checkout", "-q", "-b", "feature/merge");
+      fs.writeFileSync(path.join(tmp, "merge.txt"), "merge\n");
+      git(tmp, "add", "merge.txt");
+      git(tmp, "commit", "-q", "-m", "merge");
+      const featureTip = git(tmp, "rev-parse", "HEAD");
+      git(tmp, "checkout", "-q", "main");
+
+      const result = runTaskJson(tmp, "deliver", "merge", "--mode", "local-merge", "--authorize", "--json");
+
+      expect(git(tmp, "rev-parse", "main")).toBe(featureTip);
+      expect((result.integration as Record<string, unknown>).state).toBe("integrated");
+
+      const cleanup = runTaskJson(tmp, "delivery-cleanup", "merge", "--delete-branch", "--authorize", "--json");
+      expect((cleanup.integration as Record<string, unknown>).state).toBe("integrated");
+      expect(cleanup.cleanup).toEqual({ worktree: "not_recorded", branch: "deleted" });
+      const deleted = spawnSync("git", ["show-ref", "--verify", "--quiet", "refs/heads/feature/merge"], { cwd: tmp });
+      expect(deleted.status).not.toBe(0);
+      const after = runTaskJson(tmp, "delivery-status", "merge", "--json");
+      expect((after.integration as Record<string, unknown>).state).toBe("integrated");
+      expect((after.feature as Record<string, unknown>).task_commit).toBe(featureTip);
+    });
+
+    it("blocks a recorded task commit that no longer matches its feature tip", () => {
+      const taskPath = setDeliveryTask(tmp, "stale-commit", "feature/stale-commit");
+      git(tmp, "add", "-A");
+      git(tmp, "commit", "-q", "-m", "initial");
+      const recorded = git(tmp, "rev-parse", "HEAD");
+      git(tmp, "checkout", "-q", "-b", "feature/stale-commit");
+      fs.writeFileSync(path.join(tmp, "later.txt"), "later\n");
+      git(tmp, "add", "later.txt");
+      git(tmp, "commit", "-q", "-m", "later feature work");
+      const featureTip = git(tmp, "rev-parse", "HEAD");
+      const task = JSON.parse(fs.readFileSync(taskPath, "utf-8")) as Record<string, unknown>;
+      task.commit = recorded;
+      fs.writeFileSync(taskPath, `${JSON.stringify(task)}\n`);
+      git(tmp, "checkout", "-q", "main");
+      const mainBefore = git(tmp, "rev-parse", "HEAD");
+
+      const receipt = runTaskJson(tmp, "delivery-status", "stale-commit", "--json");
+      expect((receipt.integration as Record<string, unknown>).state).toBe("integration_blocked");
+      expect((receipt.integration as Record<string, unknown>).conflict_state).toBe("task_commit_mismatch");
+      const block = blockedReceipt(runTask(tmp, "deliver", "stale-commit", "--mode", "local-merge", "--authorize", "--json"));
+      expect((block.operation as Record<string, unknown>).reason).toBe("delivery_state_unavailable");
+      expect(git(tmp, "rev-parse", "main")).toBe(mainBefore);
+      expect(git(tmp, "rev-parse", "feature/stale-commit")).toBe(featureTip);
+    });
+
+    it("degrades missing delivery metadata without changing Git", () => {
+      makeTask(tmp, "legacy", "# legacy\n");
+      git(tmp, "add", "-A");
+      git(tmp, "commit", "-q", "-m", "initial");
+      const before = git(tmp, "rev-parse", "HEAD");
+      const receipt = runTaskJson(tmp, "delivery-status", "legacy", "--json");
+      expect((receipt.integration as Record<string, unknown>).state).toBe("no_code_change");
+      expect(git(tmp, "rev-parse", "HEAD")).toBe(before);
+    });
+
+    it("reports uncommitted linked-worktree changes without touching either branch", () => {
+      const linked = `${tmp}-worktree-uncommitted`;
+      setDeliveryTask(tmp, "uncommitted", "feature/uncommitted", linked);
+      git(tmp, "add", "-A");
+      git(tmp, "commit", "-q", "-m", "initial");
+      addWorktree(tmp, linked, "main", "feature/uncommitted");
+      fs.writeFileSync(path.join(linked, "dirty.txt"), "not committed\n");
+      const mainBefore = git(tmp, "rev-parse", "main");
+      const featureBefore = git(tmp, "rev-parse", "feature/uncommitted");
+
+      const receipt = runTaskJson(tmp, "delivery-status", "uncommitted", "--json");
+
+      expect((receipt.integration as Record<string, unknown>).state).toBe("uncommitted");
+      expect((receipt.worktree as Record<string, unknown>).dirty_count).toBe(1);
+      expect(git(tmp, "rev-parse", "main")).toBe(mainBefore);
+      expect(git(tmp, "rev-parse", "feature/uncommitted")).toBe(featureBefore);
+    });
+
+    it("reports a conflict as a structured block without changing the base", () => {
+      setDeliveryTask(tmp, "conflict", "feature/conflict");
+      fs.writeFileSync(path.join(tmp, "shared.txt"), "base\n");
+      git(tmp, "add", "-A");
+      git(tmp, "commit", "-q", "-m", "initial");
+      git(tmp, "checkout", "-q", "-b", "feature/conflict");
+      fs.writeFileSync(path.join(tmp, "shared.txt"), "feature\n");
+      git(tmp, "commit", "-qam", "feature change");
+      const featureTip = git(tmp, "rev-parse", "HEAD");
+      git(tmp, "checkout", "-q", "main");
+      fs.writeFileSync(path.join(tmp, "shared.txt"), "main\n");
+      git(tmp, "commit", "-qam", "main change");
+      const mainBefore = git(tmp, "rev-parse", "HEAD");
+
+      const receipt = runTaskJson(tmp, "delivery-status", "conflict", "--json");
+
+      expect((receipt.integration as Record<string, unknown>).state).toBe("integration_blocked");
+      expect((receipt.integration as Record<string, unknown>).conflict_state).toBe("conflict");
+      expect(receipt.allowed_modes).toEqual(["pr", "retain"]);
+      expect(git(tmp, "rev-parse", "main")).toBe(mainBefore);
+      expect(git(tmp, "rev-parse", "feature/conflict")).toBe(featureTip);
+    });
+
+    it("blocks an authorized merge into a dirty target with a structured reason", () => {
+      setDeliveryTask(tmp, "dirty-target", "feature/dirty-target");
+      git(tmp, "add", "-A");
+      git(tmp, "commit", "-q", "-m", "initial");
+      git(tmp, "checkout", "-q", "-b", "feature/dirty-target");
+      fs.writeFileSync(path.join(tmp, "feature.txt"), "feature\n");
+      git(tmp, "add", "feature.txt");
+      git(tmp, "commit", "-q", "-m", "feature");
+      const featureTip = git(tmp, "rev-parse", "HEAD");
+      git(tmp, "checkout", "-q", "main");
+      fs.writeFileSync(path.join(tmp, "dirty-target.txt"), "dirty\n");
+      const mainBefore = git(tmp, "rev-parse", "HEAD");
+
+      const block = blockedReceipt(runTask(tmp, "deliver", "dirty-target", "--mode", "local-merge", "--authorize", "--json"));
+
+      expect((block.operation as Record<string, unknown>).state).toBe("blocked");
+      expect((block.operation as Record<string, unknown>).reason).toBe("dirty_target_worktree");
+      expect(git(tmp, "rev-parse", "main")).toBe(mainBefore);
+      expect(git(tmp, "rev-parse", "feature/dirty-target")).toBe(featureTip);
+      expect(fs.existsSync(path.join(tmp, "dirty-target.txt"))).toBe(true);
+    });
+
+    it("blocks linked-worktree cleanup when another session owns that exact worktree", () => {
+      const linked = `${tmp}-worktree-parallel`;
+      const taskPath = setDeliveryTask(tmp, "parallel", "feature/parallel", linked);
+      git(tmp, "add", "-A");
+      git(tmp, "commit", "-q", "-m", "initial");
+      addWorktree(tmp, linked, "main", "feature/parallel");
+      git(tmp, "merge", "--ff-only", "feature/parallel");
+      const sessions = path.join(tmp, ".trellis", ".runtime", "sessions");
+      fs.mkdirSync(sessions, { recursive: true });
+      fs.writeFileSync(path.join(sessions, "other.json"), JSON.stringify({ task_dir: path.dirname(taskPath), worktree_path: fs.realpathSync(linked) }));
+
+      const block = blockedReceipt(runTask(tmp, "delivery-cleanup", "parallel", "--remove-worktree", "--authorize", "--json"));
+
+      expect((block.operation as Record<string, unknown>).reason).toBe("parallel_session_reference");
+      expect(fs.existsSync(linked)).toBe(true);
+      expect(git(tmp, "worktree", "list", "--porcelain")).toContain(`worktree ${fs.realpathSync(linked)}`);
+    });
+
+    it("blocks detached and submodule worktree removal without forcing either path", () => {
+      const detached = `${tmp}-worktree-detached`;
+      setDeliveryTask(tmp, "detached", "main", detached);
+      fs.writeFileSync(path.join(tmp, ".gitmodules"), "[submodule \"fixture\"]\n");
+      git(tmp, "add", "-A");
+      git(tmp, "commit", "-q", "-m", "initial");
+      git(tmp, "worktree", "add", "--quiet", "--detach", detached, "HEAD");
+
+      const submoduleBlock = blockedReceipt(runTask(tmp, "delivery-cleanup", "detached", "--remove-worktree", "--authorize", "--json"));
+      expect((submoduleBlock.operation as Record<string, unknown>).reason).toBe("submodule_worktree");
+      expect(fs.existsSync(detached)).toBe(true);
+
+      git(tmp, "rm", "-q", ".gitmodules");
+      git(tmp, "commit", "-q", "-m", "remove submodule fixture");
+      const detachedOnly = `${tmp}-worktree-detached-only`;
+      setDeliveryTask(tmp, "detached-only", "main", detachedOnly);
+      git(tmp, "worktree", "add", "--quiet", "--detach", detachedOnly, "HEAD");
+      const detachedBlock = blockedReceipt(runTask(tmp, "delivery-cleanup", "detached-only", "--remove-worktree", "--authorize", "--json"));
+      expect((detachedBlock.operation as Record<string, unknown>).reason).toBe("detached_head");
+      expect(fs.existsSync(detachedOnly)).toBe(true);
+    });
+
+    it("blocks prunable registration cleanup and leaves its Git registration intact", () => {
+      const linked = `${tmp}-worktree-prunable`;
+      setDeliveryTask(tmp, "prunable", "feature/prunable", linked);
+      git(tmp, "add", "-A");
+      git(tmp, "commit", "-q", "-m", "initial");
+      addWorktree(tmp, linked, "main", "feature/prunable");
+      git(tmp, "merge", "--ff-only", "feature/prunable");
+      fs.rmSync(linked, { recursive: true, force: true });
+
+      const block = blockedReceipt(runTask(tmp, "delivery-cleanup", "prunable", "--remove-worktree", "--authorize", "--json"));
+
+      expect((block.operation as Record<string, unknown>).reason).toBe("prunable_worktree_registration");
+      expect(git(tmp, "worktree", "list", "--porcelain")).toContain(`worktree ${fs.realpathSync(tmp)}-worktree-prunable`);
+      expect(git(tmp, "worktree", "list", "--porcelain")).toContain("prunable");
+    });
+
+    it("blocks deleting a feature branch checked out by another linked worktree", () => {
+      const linked = `${tmp}-worktree-same-branch`;
+      setDeliveryTask(tmp, "same-branch", "feature/same-branch");
+      git(tmp, "add", "-A");
+      git(tmp, "commit", "-q", "-m", "initial");
+      git(tmp, "checkout", "-q", "-b", "feature/same-branch");
+      fs.writeFileSync(path.join(tmp, "feature.txt"), "feature\n");
+      git(tmp, "add", "feature.txt");
+      git(tmp, "commit", "-q", "-m", "feature");
+      const featureTip = git(tmp, "rev-parse", "HEAD");
+      git(tmp, "checkout", "-q", "main");
+      git(tmp, "merge", "--ff-only", "feature/same-branch");
+      addWorktree(tmp, linked, "feature/same-branch");
+
+      const block = blockedReceipt(runTask(tmp, "delivery-cleanup", "same-branch", "--delete-branch", "--authorize", "--json"));
+
+      expect((block.operation as Record<string, unknown>).reason).toBe("feature_branch_checked_out");
+      expect(git(tmp, "rev-parse", "feature/same-branch")).toBe(featureTip);
+      expect(fs.existsSync(linked)).toBe(true);
+    });
+
+    it("removes only an explicitly authorized clean linked worktree", () => {
+      const linked = `${tmp}-worktree-remove`;
+      setDeliveryTask(tmp, "remove", "feature/remove", linked);
+      git(tmp, "add", "-A");
+      git(tmp, "commit", "-q", "-m", "initial");
+      addWorktree(tmp, linked, "main", "feature/remove");
+      git(tmp, "merge", "--ff-only", "feature/remove");
+      const featureTip = git(tmp, "rev-parse", "feature/remove");
+
+      const receipt = runTaskJson(tmp, "delivery-cleanup", "remove", "--remove-worktree", "--authorize", "--json");
+
+      expect((receipt.integration as Record<string, unknown>).state).toBe("integrated");
+      expect((receipt.cleanup as Record<string, unknown>).worktree).toBe("removed");
+      expect(fs.existsSync(linked)).toBe(false);
+      expect(git(tmp, "worktree", "list", "--porcelain")).not.toContain(`worktree ${linked}`);
+      expect(git(tmp, "rev-parse", "feature/remove")).toBe(featureTip);
+    });
+
+    it("does not mistake the active task pointer for a parallel worktree owner", () => {
+      const linked = `${tmp}-worktree-active-session`;
+      const taskPath = setDeliveryTask(tmp, "active-session", "feature/active-session", linked);
+      git(tmp, "add", "-A");
+      git(tmp, "commit", "-q", "-m", "initial");
+      addWorktree(tmp, linked, "main", "feature/active-session");
+      git(tmp, "merge", "--ff-only", "feature/active-session");
+      const sessions = path.join(tmp, ".trellis", ".runtime", "sessions");
+      fs.mkdirSync(sessions, { recursive: true });
+      fs.writeFileSync(path.join(sessions, "current.json"), JSON.stringify({ current_task: taskPath }));
+
+      runTaskJson(tmp, "delivery-cleanup", "active-session", "--remove-worktree", "--authorize", "--json");
+
+      expect(fs.existsSync(linked)).toBe(false);
+    });
+
+    it("can remove a clean worktree and delete its integrated branch when both are separately requested", () => {
+      const linked = `${tmp}-worktree-remove-and-delete`;
+      setDeliveryTask(tmp, "remove-and-delete", "feature/remove-and-delete", linked);
+      git(tmp, "add", "-A");
+      git(tmp, "commit", "-q", "-m", "initial");
+      addWorktree(tmp, linked, "main", "feature/remove-and-delete");
+      git(tmp, "merge", "--ff-only", "feature/remove-and-delete");
+
+      const receipt = runTaskJson(tmp, "delivery-cleanup", "remove-and-delete", "--remove-worktree", "--delete-branch", "--authorize", "--json");
+
+      expect(fs.existsSync(linked)).toBe(false);
+      expect(spawnSync("git", ["show-ref", "--verify", "--quiet", "refs/heads/feature/remove-and-delete"], { cwd: tmp }).status).not.toBe(0);
+      expect((receipt.integration as Record<string, unknown>).state).toBe("integrated");
+      expect(receipt.cleanup).toEqual({ worktree: "removed", branch: "deleted" });
     });
   },
 );

@@ -42,7 +42,23 @@ git status --porcelain
   > “提示：Task 范围外有其他变更文件——将它们留给其他窗口：`<list>`。”
 - **确实无法判断**——只询问用户一次：“`<list>` 是我忘记提交的当前 Task 工作，还是另一个窗口的？（提交 / 忽略）”——然后按回答路由。
 
-## Step 3：归档 Task
+## Step 3：核验交付，再归档 Task
+
+在归档前，为 Step 1 选中的每个 Task 运行只读回执：
+
+```bash
+{{PYTHON_CMD}} ./.trellis/scripts/task.py delivery-status <task-name> --json
+```
+
+- `uncommitted`：停止本命令，展示回执中的工作树路径和功能分支，并返回 Phase 3.4。
+- `integration_pending`：只询问一次交付方式：本地合并、创建合并请求或保留。默认不执行 Git 写操作、推送或清理。执行 `deliver <task> --mode local-merge --authorize`、显式创建合并请求，或执行 `deliver <task> --mode retain --reason "..."` 后，重新读取 `delivery-status --json`。
+- `integration_blocked`：因冲突或不安全工作树停止。`retained` 可以归档，但最终回执必须保留分支、提交、工作树和保留原因。
+- `integrated` 或 `cleanup_pending`：可以继续。工作树移除和分支删除仍须分别获得授权；此处不得强制清理。
+- `committed`：停止，直到记录目标分支或用户明确保留代码。`no_code_change` 在完成正常的非代码验收后可以归档。`unavailable` 仅在回执显示历史非 Git/无代码 Task 时可以归档；其他情况必须停止，不能猜测。
+
+最终交接固定说明：代码位置、功能提交、目标分支、集成状态、远端/合并请求状态、工作树/分支清理状态，以及未完成的下一步。
+
+## Step 4：归档 Task
 
 ```bash
 {{PYTHON_CMD}} ./.trellis/scripts/task.py archive <task-name>
@@ -52,7 +68,7 @@ git status --porcelain
 
 如果没有当前 Task，且用户也没有确认任何额外清理项，则跳过此步骤。
 
-## Step 4：记录 Session 日志
+## Step 5：记录 Session 日志
 
 ```bash
 {{PYTHON_CMD}} ./.trellis/scripts/add_session.py \
