@@ -154,7 +154,8 @@ List 选项：
   python3 task.py create "Add login feature" --slug add-login
   python3 task.py create "Add login feature" --slug add-login --package cli
   python3 task.py create "Add login feature" --meta linear=ENG-123 --meta epic=auth
-  python3 task.py create "Child task" --slug child --parent .trellis/tasks/01-21-parent
+  python3 task.py create "Story parent" --slug story-release-diff
+  python3 task.py create "Child task" --slug child --parent .trellis/tasks/01-21-story-release-diff
   python3 task.py add-context <dir> implement .trellis/spec/cli/backend/auth.md "Auth guidelines"
   python3 task.py set-branch <dir> task/add-login
   python3 task.py start .trellis/tasks/01-21-add-login
@@ -179,6 +180,7 @@ List 选项：
     "task_store.new_slug_hint": "如需创建新 task，请使用新的 slug。",
     "task_store.directory_exists": "警告：Task 目录已存在：{task}",
     "task_store.parent_not_found": "警告：找不到 parent task.json：{parent}",
+    "task_store.story_parent_required": "错误：父 task 必须使用 story-<业务短名> slug 才能关联 child task：{parent}",
     "task_store.linked_child": "已关联为以下 task 的 child：{parent}",
     "task_store.created": "已创建 task：{task}",
     "task_store.next_steps": "下一步：",

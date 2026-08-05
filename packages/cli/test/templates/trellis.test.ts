@@ -279,6 +279,7 @@ describe("trellis template constants", () => {
     );
     expect(workflowMdTemplate).toContain("--parent <parent-dir>");
     expect(workflowMdTemplate).toContain("task.py add-subtask <parent> <child>");
+    expect(workflowMdTemplate).toContain("story-<business-short-name>");
     expect(workflowMdTemplate).toContain(
       "start the child that owns the next independently verifiable deliverable",
     );

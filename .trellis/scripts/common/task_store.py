@@ -74,6 +74,14 @@ def _slugify(title: str) -> str:
     return result
 
 
+def _is_story_parent_task(task_data: dict) -> bool:
+    """Return whether a task can own new child tasks under the naming contract."""
+    task_id = task_data.get("id")
+    return isinstance(task_id, str) and bool(
+        re.fullmatch(r"story-[a-z0-9]+(?:-[a-z0-9]+)*", task_id)
+    )
+
+
 def ensure_tasks_dir(repo_root: Path) -> Path:
     """Ensure tasks directory exists."""
     tasks_dir = get_tasks_dir(repo_root)
@@ -343,6 +351,30 @@ def cmd_create(args: argparse.Namespace) -> int:
                 print(f"Pass only the slug body, e.g. --slug {m.group(3)}", file=sys.stderr)
                 return 1
 
+    parent_dir: Path | None = None
+    parent_data: dict | None = None
+    if args.parent:
+        parent_dir = resolve_task_dir(args.parent, repo_root)
+        parent_json_path = parent_dir / FILE_TASK_JSON
+        if not parent_json_path.is_file():
+            print(colored(t("task_store.parent_json_missing", parent=args.parent), Colors.RED), file=sys.stderr)
+            return 1
+
+        parent_data = read_json(parent_json_path)
+        if not parent_data:
+            print(colored(t("task_store.read_json_failed"), Colors.RED), file=sys.stderr)
+            return 1
+
+        if not _is_story_parent_task(parent_data):
+            print(
+                colored(
+                    t("task_store.story_parent_required", parent=parent_dir.name),
+                    Colors.RED,
+                ),
+                file=sys.stderr,
+            )
+            return 1
+
     dir_name = f"{date_prefix}-{slug}"
     task_dir = tasks_dir / dir_name
     task_json_path = task_dir / FILE_TASK_JSON
@@ -467,27 +499,18 @@ def cmd_create(args: argparse.Namespace) -> int:
                 _write_seed_jsonl(jsonl_path)
         seeded_jsonl = True
 
-    # Handle --parent: establish bidirectional link
-    if args.parent:
-        parent_dir = resolve_task_dir(args.parent, repo_root)
-        parent_json_path = parent_dir / FILE_TASK_JSON
-        if not parent_json_path.is_file():
-            print(colored(t("task_store.parent_not_found", parent=args.parent), Colors.YELLOW), file=sys.stderr)
-        else:
-            parent_data = read_json(parent_json_path)
-            if parent_data:
-                # Add child to parent's children list
-                parent_children = parent_data.get("children", [])
-                if dir_name not in parent_children:
-                    parent_children.append(dir_name)
-                    parent_data["children"] = parent_children
-                    write_json(parent_json_path, parent_data)
+    # Handle --parent: establish bidirectional link after the preflight above.
+    if parent_dir and parent_data:
+        parent_children = parent_data.get("children", [])
+        if dir_name not in parent_children:
+            parent_children.append(dir_name)
+            parent_data["children"] = parent_children
+            write_json(parent_dir / FILE_TASK_JSON, parent_data)
 
-                # Set parent in child's task.json
-                task_data["parent"] = parent_dir.name
-                write_json(task_json_path, task_data)
+        task_data["parent"] = parent_dir.name
+        write_json(task_json_path, task_data)
 
-                print(colored(t("task_store.linked_child", parent=parent_dir.name), Colors.GREEN), file=sys.stderr)
+        print(colored(t("task_store.linked_child", parent=parent_dir.name), Colors.GREEN), file=sys.stderr)
 
     # Auto-activate the new task so the per-turn breadcrumb fires planning
     # state. Best-effort: gracefully degrade if no session identity (CLI run
@@ -806,6 +829,16 @@ def cmd_add_subtask(args: argparse.Namespace) -> int:
     existing_parent = child_data.get("parent")
     if existing_parent:
         print(colored(t("task_store.child_has_parent", parent=existing_parent), Colors.RED), file=sys.stderr)
+        return 1
+
+    if not _is_story_parent_task(parent_data):
+        print(
+            colored(
+                t("task_store.story_parent_required", parent=parent_dir.name),
+                Colors.RED,
+            ),
+            file=sys.stderr,
+        )
         return 1
 
     # Add child to parent's children list

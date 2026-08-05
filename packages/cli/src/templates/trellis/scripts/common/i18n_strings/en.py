@@ -154,7 +154,8 @@ Examples:
   python3 task.py create "Add login feature" --slug add-login
   python3 task.py create "Add login feature" --slug add-login --package cli
   python3 task.py create "Add login feature" --meta linear=ENG-123 --meta epic=auth
-  python3 task.py create "Child task" --slug child --parent .trellis/tasks/01-21-parent
+  python3 task.py create "Story parent" --slug story-release-diff
+  python3 task.py create "Child task" --slug child --parent .trellis/tasks/01-21-story-release-diff
   python3 task.py add-context <dir> implement .trellis/spec/cli/backend/auth.md "Auth guidelines"
   python3 task.py set-branch <dir> task/add-login
   python3 task.py start .trellis/tasks/01-21-add-login
@@ -179,6 +180,7 @@ Examples:
     "task_store.new_slug_hint": "Use a new slug if you intend to create a new task.",
     "task_store.directory_exists": "Warning: Task directory already exists: {task}",
     "task_store.parent_not_found": "Warning: Parent task.json not found: {parent}",
+    "task_store.story_parent_required": "Error: Parent task must use a story-<business-short-name> slug before it can receive child tasks: {parent}",
     "task_store.linked_child": "Linked as child of: {parent}",
     "task_store.created": "Created task: {task}",
     "task_store.next_steps": "Next steps:",

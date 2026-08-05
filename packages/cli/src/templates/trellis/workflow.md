@@ -179,7 +179,7 @@ Use a parent task when one user request contains several independently verifiabl
 
 Use child tasks for deliverables that can be planned, implemented, checked, and archived independently. Parent/child structure is not a dependency system: if one child must wait for another, write that ordering in the child `prd.md` / `implement.md` and keep each child's acceptance criteria testable.
 
-Create new children with `task.py create "<title>" --slug <name> --parent <parent-dir>`. Link existing tasks with `task.py add-subtask <parent> <child>`, and unlink mistakes with `task.py remove-subtask <parent> <child>`.
+Every new parent task that owns children must use the slug `story-<business-short-name>` (for example, `story-release-diff`). Standalone tasks do not need this prefix. Create the Story parent first, then create new children with `task.py create "<title>" --slug <name> --parent <parent-dir>`. Link existing tasks with `task.py add-subtask <parent> <child>`, and unlink mistakes with `task.py remove-subtask <parent> <child>`.
 
 <!-- Per-turn breadcrumb: shown when there is no active task (before Phase 1) -->
 

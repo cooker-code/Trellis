@@ -175,7 +175,7 @@ Phase 3: 收尾 → 验证、更新 Spec、commit 并完成收尾
 
 child Task 用于可独立规划、实施、检查和归档的交付物。parent/child 结构不是依赖系统：如果某个 child 必须等待另一个 child，请把顺序写入该 child 的 `prd.md` / `implement.md`，并确保每个 child 的验收标准都可测试。
 
-使用 `task.py create "<title>" --slug <name> --parent <parent-dir>` 创建新的 child。使用 `task.py add-subtask <parent> <child>` 关联已有 Task，使用 `task.py remove-subtask <parent> <child>` 解除错误关联。
+所有新增且拥有 child 的父 Task 必须使用 `story-<business-short-name>` slug，例如 `story-release-diff`。独立 Task 不需要此前缀。先创建 Story 父 Task，再使用 `task.py create "<title>" --slug <name> --parent <parent-dir>` 创建新的 child。使用 `task.py add-subtask <parent> <child>` 关联已有 Task，使用 `task.py remove-subtask <parent> <child>` 解除错误关联。
 
 <!-- 每轮面包屑：没有 active Task 时显示（Phase 1 之前） -->
 
